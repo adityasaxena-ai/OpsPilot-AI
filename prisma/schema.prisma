@@ -1,0 +1,644 @@
+// This is the Prisma schema for OpsPilot AI
+// Phase 1 tables — full schema including Phase 2/3 placeholders (commented)
+// Docs: https://www.prisma.io/docs
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Severity {
+  P1
+  P2
+  P3
+  P4
+  P5
+}
+
+enum Impact {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Environment {
+  production
+  staging
+  development
+}
+
+enum ServiceTier {
+  T1 @map("1")
+  T2 @map("2")
+  T3 @map("3")
+}
+
+enum ServiceStatus {
+  HEALTHY
+  DEGRADED
+  DOWN
+  UNKNOWN
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+  SUPPRESSED
+}
+
+enum IncidentStatus {
+  DETECTED
+  TRIAGED
+  CORRELATED
+  INVESTIGATING
+  RCA_IDENTIFIED
+  REMEDIATION_PROPOSED
+  AWAITING_APPROVAL
+  EXECUTING
+  VERIFYING
+  RESOLVED
+  FAILED
+  ESCALATED
+  LEARNING
+}
+
+enum EvidenceType {
+  METRIC
+  LOG
+  TRACE
+  DEPLOYMENT
+  CHANGE
+  HISTORICAL_INCIDENT
+  RUNBOOK
+}
+
+enum RemediationActionType {
+  RESTART_SERVICE
+  SCALE_SERVICE
+  ROLLBACK_DEPLOYMENT
+  RETRY_BATCH
+  CLEAR_CACHE
+}
+
+enum RemediationStatus {
+  PROPOSED
+  AWAITING_APPROVAL
+  APPROVED
+  REJECTED
+  EXECUTING
+  SUCCEEDED
+  FAILED
+  ROLLED_BACK
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum UserRole {
+  VIEWER
+  OPERATOR
+  INCIDENT_COMMANDER
+  ADMIN
+}
+
+enum ActorType {
+  USER
+  AI
+  SYSTEM
+  SIMULATOR
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum EventType {
+  ALERT
+  METRIC
+  LOG
+  DEPLOYMENT
+  CHANGE
+  HEALTH
+}
+
+enum ChaosScenario {
+  BAD_DEPLOYMENT
+  HIGH_CPU
+  MEMORY_LEAK
+  DB_CONNECTION_EXHAUSTION
+  API_LATENCY
+  QUEUE_BACKLOG
+  BATCH_FAILURE
+  DISK_FULL
+  DEPENDENCY_FAILURE
+  CERT_EXPIRY
+}
+
+// ─────────────────────────────────────────────
+// Identity
+// ─────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(VIEWER)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  assignedIncidents   Incident[]          @relation("AssignedIncidents")
+  approvalRequests    Approval[]          @relation("ApprovalRequester")
+  approvalResponses   Approval[]          @relation("ApprovalResponder")
+  auditLogs           AuditLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// Service Topology
+// ─────────────────────────────────────────────
+
+model Service {
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  description  String
+  tier         ServiceTier
+  environment  Environment   @default(production)
+  ownerTeam    String        @map("owner_team")
+  ownerEmail   String        @map("owner_email")
+  status       ServiceStatus @default(UNKNOWN)
+  healthScore  Float         @default(100) @map("health_score")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  dependsOn     ServiceDependency[] @relation("ServiceDependencies")
+  dependedOnBy  ServiceDependency[] @relation("DependedOnBy")
+  alerts        Alert[]
+  incidents     Incident[]
+  runbooks      Runbook[]
+  thresholdRules ThresholdRule[]
+  simState      SimService?
+
+  @@map("services")
+}
+
+model ServiceDependency {
+  id             String   @id @default(cuid())
+  serviceId      String   @map("service_id")
+  dependsOnId    String   @map("depends_on_id")
+  dependencyType String   @default("HARD") @map("dependency_type")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  service   Service @relation("ServiceDependencies", fields: [serviceId], references: [id], onDelete: Cascade)
+  dependsOn Service @relation("DependedOnBy", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, dependsOnId])
+  @@map("service_dependencies")
+}
+
+// ─────────────────────────────────────────────
+// Events & Alerts
+// ─────────────────────────────────────────────
+
+model Event {
+  id            String      @id @default(cuid())
+  source        String
+  eventType     EventType   @map("event_type")
+  severity      Severity
+  serviceId     String      @map("service_id")
+  environment   Environment
+  fingerprint   String
+  labels        Json        @default("{}")
+  payload       Json        @default("{}")
+  rawPayload    Json?       @map("raw_payload")
+  normalizedAt  DateTime?   @map("normalized_at")
+  isDuplicate   Boolean     @default(false) @map("is_duplicate")
+  duplicateOfId String?     @map("duplicate_of_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  alert Alert?
+
+  @@index([fingerprint])
+  @@index([serviceId])
+  @@index([createdAt])
+  @@map("events")
+}
+
+model Alert {
+  id              String      @id @default(cuid())
+  eventId         String?     @unique @map("event_id")
+  serviceId       String      @map("service_id")
+  title           String
+  description     String
+  severity        Severity
+  status          AlertStatus @default(ACTIVE)
+  fingerprint     String
+  labels          Json        @default("{}")
+  firstSeenAt     DateTime    @map("first_seen_at")
+  lastSeenAt      DateTime    @map("last_seen_at")
+  occurrenceCount Int         @default(1) @map("occurrence_count")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  event          Event?           @relation(fields: [eventId], references: [id])
+  service        Service          @relation(fields: [serviceId], references: [id])
+  alertGroupMemberships AlertGroupMember[]
+
+  @@index([serviceId])
+  @@index([status])
+  @@index([fingerprint])
+  @@map("alerts")
+}
+
+model AlertGroup {
+  id                String   @id @default(cuid())
+  incidentId        String?  @map("incident_id")
+  correlationReason String   @map("correlation_reason")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  incident Incident?          @relation(fields: [incidentId], references: [id])
+  members  AlertGroupMember[]
+
+  @@map("alert_groups")
+}
+
+model AlertGroupMember {
+  alertGroupId String @map("alert_group_id")
+  alertId      String @map("alert_id")
+
+  alertGroup AlertGroup @relation(fields: [alertGroupId], references: [id], onDelete: Cascade)
+  alert      Alert      @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@id([alertGroupId, alertId])
+  @@map("alert_group_members")
+}
+
+// ─────────────────────────────────────────────
+// Incidents
+// ─────────────────────────────────────────────
+
+model Incident {
+  id                  String         @id @default(cuid())
+  title               String
+  description         String
+  severity            Severity
+  status              IncidentStatus @default(DETECTED)
+  serviceId           String         @map("service_id")
+  environment         Environment    @default(production)
+  assignedToId        String?        @map("assigned_to_id")
+  aiTriageConfidence  Float?         @map("ai_triage_confidence")
+  aiTriageResult      Json?          @map("ai_triage_result")
+  rcaResult           Json?          @map("rca_result")
+  detectedAt          DateTime       @map("detected_at")
+  triagedAt           DateTime?      @map("triaged_at")
+  resolvedAt          DateTime?      @map("resolved_at")
+  mttdSeconds         Int?           @map("mttd_seconds")
+  mttaSeconds         Int?           @map("mtta_seconds")
+  mttrSeconds         Int?           @map("mttr_seconds")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  service           Service             @relation(fields: [serviceId], references: [id])
+  assignedTo        User?               @relation("AssignedIncidents", fields: [assignedToId], references: [id])
+  alertGroups       AlertGroup[]
+  incidentEvents    IncidentEvent[]
+  evidence          Evidence[]
+  investigations    Investigation[]
+  rcaResults        RCAResult[]
+  remediations      RemediationAction[]
+  approvals         Approval[]
+  postmortem        Postmortem?
+  auditLogs         AuditLog[]
+
+  @@index([status])
+  @@index([serviceId])
+  @@index([severity])
+  @@index([detectedAt])
+  @@map("incidents")
+}
+
+model IncidentEvent {
+  id          String    @id @default(cuid())
+  incidentId  String    @map("incident_id")
+  eventType   String    @map("event_type")
+  actorId     String?   @map("actor_id")
+  actorType   ActorType @map("actor_type")
+  description String
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("incident_events")
+}
+
+// ─────────────────────────────────────────────
+// Evidence & Investigation (Phase 2 ready)
+// ─────────────────────────────────────────────
+
+model Evidence {
+  id            String       @id @default(cuid())
+  incidentId    String       @map("incident_id")
+  evidenceType  EvidenceType @map("evidence_type")
+  source        String
+  title         String
+  content       String
+  data          Json         @default("{}")
+  relevanceScore Float       @default(0.5) @map("relevance_score")
+  collectedAt   DateTime     @map("collected_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("evidence")
+}
+
+model Investigation {
+  id          String   @id @default(cuid())
+  incidentId  String   @map("incident_id")
+  agentName   String   @map("agent_name")
+  input       Json
+  output      Json
+  confidence  Float    @default(0)
+  durationMs  Int      @default(0) @map("duration_ms")
+  modelUsed   String?  @map("model_used")
+  tokenCount  Int      @default(0) @map("token_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("investigations")
+}
+
+model RCAResult {
+  id                String   @id @default(cuid())
+  incidentId        String   @map("incident_id")
+  probableCause     String   @map("probable_cause")
+  confidence        Float    @default(0)
+  evidenceIds       String[] @map("evidence_ids")
+  recommendedActions Json    @default("[]") @map("recommended_actions")
+  alternativeCauses Json    @default("[]") @map("alternative_causes")
+  supportingContext String   @map("supporting_context")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("rca_results")
+}
+
+// ─────────────────────────────────────────────
+// Remediation & Approvals (Phase 3 ready)
+// ─────────────────────────────────────────────
+
+model RemediationAction {
+  id             String                @id @default(cuid())
+  incidentId     String                @map("incident_id")
+  actionType     RemediationActionType @map("action_type")
+  actionParams   Json                  @default("{}") @map("action_params")
+  status         RemediationStatus     @default(PROPOSED)
+  riskScore      Int                   @default(0) @map("risk_score")
+  riskLevel      RiskLevel             @default(LOW) @map("risk_level")
+  riskFactors    Json                  @default("{}") @map("risk_factors")
+  proposedByAi   Boolean               @default(true) @map("proposed_by_ai")
+  proposedAt     DateTime              @default(now()) @map("proposed_at")
+  executedAt     DateTime?             @map("executed_at")
+  completedAt    DateTime?             @map("completed_at")
+  executionLog   String?               @map("execution_log")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  incident  Incident    @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  approval  Approval?
+  auditLogs AuditLog[]
+
+  @@index([incidentId])
+  @@index([status])
+  @@map("remediation_actions")
+}
+
+model Approval {
+  id                    String         @id @default(cuid())
+  remediationActionId   String         @unique @map("remediation_action_id")
+  incidentId            String         @map("incident_id")
+  requestedById         String?        @map("requested_by_id")
+  approvedById          String?        @map("approved_by_id")
+  status                ApprovalStatus @default(PENDING)
+  aiRecommendation      String?        @map("ai_recommendation")
+  riskSummary           String?        @map("risk_summary")
+  requestedAt           DateTime       @default(now()) @map("requested_at")
+  respondedAt           DateTime?      @map("responded_at")
+  expiresAt             DateTime       @map("expires_at")
+  rejectionReason       String?        @map("rejection_reason")
+  createdAt             DateTime       @default(now()) @map("created_at")
+
+  remediationAction RemediationAction @relation(fields: [remediationActionId], references: [id], onDelete: Cascade)
+  incident          Incident          @relation(fields: [incidentId], references: [id])
+  requestedBy       User?             @relation("ApprovalRequester", fields: [requestedById], references: [id])
+  approvedBy        User?             @relation("ApprovalResponder", fields: [approvedById], references: [id])
+
+  @@index([incidentId])
+  @@index([status])
+  @@map("approvals")
+}
+
+// ─────────────────────────────────────────────
+// Policy Engine (Phase 3 ready)
+// ─────────────────────────────────────────────
+
+model Policy {
+  id                String                @id @default(cuid())
+  name              String
+  description       String
+  actionType        RemediationActionType @map("action_type")
+  environment       Environment           @default(production)
+  serviceTier       ServiceTier           @map("service_tier")
+  maxRiskScore      Int                   @default(30) @map("max_risk_score")
+  requiresApproval  Boolean               @default(true) @map("requires_approval")
+  isAutonomous      Boolean               @default(false) @map("is_autonomous")
+  maxRetries        Int                   @default(1) @map("max_retries")
+  conditions        Json                  @default("{}")
+  isActive          Boolean               @default(true) @map("is_active")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  @@map("policies")
+}
+
+// ─────────────────────────────────────────────
+// Knowledge Base (Phase 2 ready)
+// ─────────────────────────────────────────────
+
+model Runbook {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  serviceId   String?  @map("service_id")
+  content     String
+  tags        String[]
+  version     String   @default("1.0")
+  authorId    String?  @map("author_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  service Service? @relation(fields: [serviceId], references: [id])
+
+  @@index([serviceId])
+  @@map("runbooks")
+}
+
+// ─────────────────────────────────────────────
+// Postmortems
+// ─────────────────────────────────────────────
+
+model Postmortem {
+  id                      String   @id @default(cuid())
+  incidentId              String   @unique @map("incident_id")
+  summary                 String
+  businessImpact          String   @map("business_impact")
+  timeline                Json     @default("[]")
+  rootCause               String   @map("root_cause")
+  detectionMethod         String   @map("detection_method")
+  remediationSummary      String   @map("remediation_summary")
+  verificationSummary     String   @map("verification_summary")
+  preventiveActions       Json     @default("[]") @map("preventive_actions")
+  automationEffectiveness String   @map("automation_effectiveness")
+  generatedBy             String   @default("AI") @map("generated_by")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@map("postmortems")
+}
+
+// ─────────────────────────────────────────────
+// Audit
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id                  String    @id @default(cuid())
+  actorId             String?   @map("actor_id")
+  actorType           ActorType @map("actor_type")
+  action              String
+  targetType          String    @map("target_type")
+  targetId            String    @map("target_id")
+  incidentId          String?   @map("incident_id")
+  metadata            Json      @default("{}")
+  aiConfidence        Float?    @map("ai_confidence")
+  riskScore           Int?      @map("risk_score")
+  approvalId          String?   @map("approval_id")
+  remediationActionId String?   @map("remediation_action_id")
+  result              String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  actor               User?              @relation(fields: [actorId], references: [id])
+  incident            Incident?          @relation(fields: [incidentId], references: [id])
+  remediationAction   RemediationAction? @relation(fields: [remediationActionId], references: [id])
+
+  @@index([incidentId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────
+// Simulator State
+// ─────────────────────────────────────────────
+
+model SimService {
+  id                   String         @id @default(cuid())
+  serviceId            String         @unique @map("service_id")
+  cpuPercent           Float          @default(20) @map("cpu_percent")
+  memoryPercent        Float          @default(40) @map("memory_percent")
+  latencyP50Ms         Float          @default(50) @map("latency_p50_ms")
+  latencyP99Ms         Float          @default(150) @map("latency_p99_ms")
+  errorRatePercent     Float          @default(0.1) @map("error_rate_percent")
+  throughputRps        Float          @default(100) @map("throughput_rps")
+  dbConnectionsActive  Int            @default(10) @map("db_connections_active")
+  dbConnectionsMax     Int            @default(100) @map("db_connections_max")
+  queueDepth           Int            @default(0) @map("queue_depth")
+  isHealthy            Boolean        @default(true) @map("is_healthy")
+  failureScenario      ChaosScenario? @map("failure_scenario")
+  failureStartedAt     DateTime?      @map("failure_started_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@map("sim_services")
+}
+
+model SimDeployment {
+  id              String    @id @default(cuid())
+  serviceId       String    @map("service_id")
+  version         String
+  commitSha       String    @map("commit_sha")
+  deployedBy      String    @map("deployed_by")
+  isBadDeployment Boolean   @default(false) @map("is_bad_deployment")
+  failureType     String?   @map("failure_type")
+  deployedAt      DateTime  @default(now()) @map("deployed_at")
+
+  @@index([serviceId])
+  @@index([deployedAt])
+  @@map("sim_deployments")
+}
+
+model SimLog {
+  id         String   @id @default(cuid())
+  serviceId  String   @map("service_id")
+  level      String
+  message    String
+  traceId    String?  @map("trace_id")
+  spanId     String?  @map("span_id")
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([serviceId])
+  @@index([createdAt])
+  @@map("sim_logs")
+}
+
+// ─────────────────────────────────────────────
+// Threshold Rules (Phase 2 Detection Engine)
+// ─────────────────────────────────────────────
+
+model ThresholdRule {
+  id          String   @id @default(cuid())
+  name        String
+  metric      String   // cpuPercent, memoryPercent, errorRatePercent, latencyP99Ms, dbConnectionsActive, queueDepth
+  operator    String   // GT, GTE, LT, LTE, EQ
+  threshold   Float
+  durationSec Int      @default(0) @map("duration_sec")
+  severity    Severity @default(P2)
+  serviceId   String?  @map("service_id")
+  service     Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([serviceId])
+  @@map("threshold_rules")
+}

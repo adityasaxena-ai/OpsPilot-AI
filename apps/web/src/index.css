@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens ─────────────────────────────────────────────────────── */
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Brand */
+  --color-brand: 220 90% 56%;       /* Vivid blue */
+  --color-brand-dim: 220 70% 48%;
+
+  /* Severity */
+  --color-p1: 0 85% 60%;            /* Vivid red */
+  --color-p2: 25 95% 55%;           /* Amber */
+  --color-p3: 48 95% 53%;           /* Yellow */
+  --color-p4: 200 80% 52%;          /* Teal */
+  --color-p5: 160 60% 50%;          /* Green */
+
+  /* Status */
+  --color-healthy: 142 72% 45%;
+  --color-degraded: 38 92% 50%;
+  --color-down: 0 85% 55%;
+  --color-unknown: 220 14% 55%;
+
+  /* UI surfaces (dark theme) */
+  --bg-app: 224 20% 7%;
+  --bg-surface: 225 18% 10%;
+  --bg-surface-2: 226 16% 13%;
+  --bg-surface-3: 226 14% 17%;
+  --border: 226 14% 20%;
+  --border-dim: 226 12% 16%;
+
+  /* Text */
+  --text-primary: 215 20% 95%;
+  --text-secondary: 215 15% 65%;
+  --text-tertiary: 215 12% 45%;
+
+  /* AI brand */
+  --color-ai: 265 85% 65%;
+  --color-ai-glow: 265 85% 65% / 0.2;
+}
+
+/* ─── Base Styles ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--font-sans);
+  background-color: hsl(var(--bg-app));
+  color: hsl(var(--text-primary));
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+code, pre, kbd { font-family: var(--font-mono); }
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--text-tertiary)); }
+
+/* ─── Severity Badge Colours ─────────────────────────────────────────────── */
+.badge-p1 { background: hsl(0 85% 60% / 0.15); color: hsl(0 85% 70%); border-color: hsl(0 85% 60% / 0.3); }
+.badge-p2 { background: hsl(25 95% 55% / 0.15); color: hsl(25 95% 65%); border-color: hsl(25 95% 55% / 0.3); }
+.badge-p3 { background: hsl(48 95% 53% / 0.15); color: hsl(48 95% 63%); border-color: hsl(48 95% 53% / 0.3); }
+.badge-p4 { background: hsl(200 80% 52% / 0.15); color: hsl(200 80% 62%); border-color: hsl(200 80% 52% / 0.3); }
+.badge-p5 { background: hsl(160 60% 50% / 0.15); color: hsl(160 60% 60%); border-color: hsl(160 60% 50% / 0.3); }
+
+/* ─── Status colours ─────────────────────────────────────────────────────── */
+.status-healthy { color: hsl(var(--color-healthy)); }
+.status-degraded { color: hsl(var(--color-degraded)); }
+.status-down { color: hsl(var(--color-down)); }
+.status-unknown { color: hsl(var(--color-unknown)); }
+
+/* ─── AI glow effect ─────────────────────────────────────────────────────── */
+.ai-glow {
+  box-shadow: 0 0 20px hsl(var(--color-ai-glow)), 0 0 40px hsl(var(--color-ai-glow));
+}
+
+/* ─── Shimmer / skeleton ─────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+    hsl(var(--bg-surface-3)) 25%,
+    hsl(var(--bg-surface-2)) 50%,
+    hsl(var(--bg-surface-3)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* ─── Fade-in animation ──────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in { animation: fadeIn 0.3s ease forwards; }
+
+/* ─── Pulse dot (live indicator) ─────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* ─── Typography ─────────────────────────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, hsl(220 90% 70%), hsl(265 85% 70%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

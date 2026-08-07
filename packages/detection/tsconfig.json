@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@opspilot/config": ["../config/src/index.ts"],
+      "@opspilot/types": ["../types/src/index.ts"],
+      "@opspilot/telemetry": ["../telemetry/src/index.ts"]
+    }
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../config" },
+    { "path": "../types" },
+    { "path": "../telemetry" }
+  ]
+}

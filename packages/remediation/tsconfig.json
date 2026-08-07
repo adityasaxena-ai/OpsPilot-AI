@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@opspilot/config": ["../config/src/index.ts"],
+      "@opspilot/policy-engine": ["../policy-engine/src/index.ts"],
+      "@opspilot/risk-engine": ["../risk-engine/src/index.ts"]
+    }
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../config" },
+    { "path": "../policy-engine" },
+    { "path": "../risk-engine" }
+  ]
+}

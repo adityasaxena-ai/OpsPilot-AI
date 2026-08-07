@@ -1,0 +1,46 @@
+{
+  "name": "opspilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpsPilot AI — Autonomous IT Operations Control Tower",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "npx pnpm --parallel --filter @opspilot/api --filter @opspilot/web dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:push": "prisma db push --schema=prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema=prisma/schema.prisma",
+    "db:seed": "tsx scripts/seed.ts",
+    "seed": "tsx scripts/seed.ts",
+    "db:studio": "prisma studio --schema=prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^9.8.0",
+    "prettier": "^3.3.3",
+    "turbo": "^2.0.14",
+    "tsx": "^4.16.5",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  },
+  "dependencies": {
+    "prisma": "^5.17.0",
+    "@prisma/client": "^5.17.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma"
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@opspilot/types": ["../../packages/types/src/index.ts"],
+      "@opspilot/config": ["../../packages/config/src/index.ts"],
+      "@opspilot/ai": ["../../packages/ai/src/index.ts"],
+      "@opspilot/agents": ["../../packages/agents/src/index.ts"],
+      "@opspilot/policy-engine": ["../../packages/policy-engine/src/index.ts"],
+      "@opspilot/risk-engine": ["../../packages/risk-engine/src/index.ts"],
+      "@opspilot/remediation": ["../../packages/remediation/src/index.ts"],
+      "@opspilot/telemetry": ["../../packages/telemetry/src/index.ts"],
+      "@opspilot/detection": ["../../packages/detection/src/index.ts"]
+    }
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/types" },
+    { "path": "../../packages/config" },
+    { "path": "../../packages/ai" },
+    { "path": "../../packages/agents" },
+    { "path": "../../packages/policy-engine" },
+    { "path": "../../packages/risk-engine" },
+    { "path": "../../packages/remediation" },
+    { "path": "../../packages/telemetry" },
+    { "path": "../../packages/detection" }
+  ]
+}

@@ -1,0 +1,34 @@
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build Outputs & Caches
+dist/
+build/
+.turbo/
+.vercel
+.output/
+
+# Prisma SQLite & Local DBs
+prisma/*.db
+prisma/*.db-journal
+
+# Logs & Diagnostics
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.system_generated/
+
+# OS & IDE Files
+.DS_Store
+.vscode/
+.idea/
+.gemini/
+*.tsbuildinfo
