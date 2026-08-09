@@ -38,7 +38,15 @@ Provide key findings, rank suspected components, estimate confidence, and recons
 Evidence Items Collected (${input.evidence.length}):
 ${input.evidence.map((e, idx) => `[Evidence #${idx + 1} - ${e.type}] ${e.title} (Relevance: ${Math.round(e.relevanceScore * 100)}%):\n${e.content}`).join('\n\n')}
 
-Analyze all evidence items and output structured investigation findings in JSON format.`;
+Analyze all evidence items and output structured investigation findings in JSON format.
+Output MUST use this JSON schema structure:
+{
+  "keyFindings": ["string finding 1", "string finding 2"],
+  "suspectedComponents": ["component1", "component2"],
+  "confidence": 0.85,
+  "timelineSummary": "chronological summary string",
+  "reasoning": "detailed reasoning string"
+}`;
 
     const response = await this.aiProvider.complete({
       systemPrompt: this.systemPrompt,

@@ -8,11 +8,11 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
   const verifier = new VerificationAgent(db);
 
   // GET /api/v1/remediation — List remediation actions
-  app.get('/', async (request) => {
+  app.get('/', async () => {
     const actions = await db.remediationAction.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        incident: { select: { title: true, severity: true } },
+        incident: { select: { title: true, severity: true, environment: true } },
         approval: true,
       },
     });
@@ -27,6 +27,18 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
     });
 
     return { success: true, data: policies };
+  });
+
+  // GET /api/v1/remediation/action-preview/:id — Get crisp action preview data for UI confirmation
+  app.get<{ Params: { id: string } }>('/action-preview/:id', async (request, reply) => {
+    const actionId = request.params.id;
+    try {
+      const preview = await executor.getActionPreview(actionId);
+      return { success: true, data: preview };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Action preview failed';
+      return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: msg } });
+    }
   });
 
   // POST /api/v1/remediation/propose — AI or user proposes a remediation action
@@ -57,8 +69,9 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
 
       return { success: true, data: result };
     } catch (err: unknown) {
+      const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
       const msg = err instanceof Error ? err.message : 'Action proposal failed';
-      return reply.status(500).send({ success: false, error: { code: 'PROPOSAL_FAILED', message: msg } });
+      return reply.status(statusCode).send({ success: false, error: { code: 'PROPOSAL_FAILED', message: msg } });
     }
   });
 
@@ -68,11 +81,35 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
 
     const action = await db.remediationAction.findUnique({
       where: { id: actionId },
-      include: { approval: true },
+      include: { approval: true, incident: true },
     });
 
     if (!action) {
       return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Action not found' } });
+    }
+
+    if (action.incident && ['RESOLVED', 'CLOSED'].includes(action.incident.status)) {
+      return reply.status(400).send({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `[InvalidState] Incident ${action.incidentId} is already ${action.incident.status}. Remediation is disabled.`,
+        },
+      });
+    }
+
+    if (['EXECUTING', 'VERIFYING', 'SUCCEEDED'].includes(action.status)) {
+      return reply.status(409).send({
+        success: false,
+        error: { code: 'CONCURRENCY_CONFLICT', message: `Remediation action ${actionId} is already in state ${action.status}` },
+      });
+    }
+
+    if (action.status !== 'AWAITING_APPROVAL') {
+      return reply.status(400).send({
+        success: false,
+        error: { code: 'INVALID_STATE', message: `Remediation action ${actionId} is in state ${action.status} and cannot be approved.` },
+      });
     }
 
     // Update action & approval request
@@ -89,28 +126,35 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
     await db.incidentEvent.create({
       data: {
         incidentId: action.incidentId,
-        eventType: 'APPROVAL_GRANTED',
+        eventType: 'REMEDIATION_APPROVED',
         actorType: 'USER',
-        description: `Human operator approved remediation action: ${action.actionType}`,
+        description: `Human operator authorized execution of ${action.actionType} on production target`,
         metadata: { actionId },
       },
     });
 
-    // Execute immediately post approval
-    const execRes = await executor.executeAction(actionId, 'dev-user-admin');
+    try {
+      // Execute post approval
+      const operatorId = process.env.NODE_ENV === 'production' ? request.headers['x-operator-id'] as string : 'dev-user-admin';
+      const execRes = await executor.executeAction(actionId, operatorId);
 
-    // Run recovery verification
-    const verifRes = await verifier.verifyRecovery(action.incidentId);
+      // Run recovery verification
+      const verifRes = await verifier.verifyRecovery(action.incidentId);
 
-    return {
-      success: true,
-      data: {
-        actionId,
-        approvalStatus: 'APPROVED',
-        execution: execRes,
-        verification: verifRes,
-      },
-    };
+      return {
+        success: true,
+        data: {
+          actionId,
+          approvalStatus: 'APPROVED',
+          execution: execRes,
+          verification: verifRes,
+        },
+      };
+    } catch (err: unknown) {
+      const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
+      const msg = err instanceof Error ? err.message : 'Execution failed';
+      return reply.status(statusCode).send({ success: false, error: { code: 'EXECUTION_FAILED', message: msg } });
+    }
   });
 
   // POST /api/v1/remediation/:id/reject — Human operator rejects a pending action
@@ -156,14 +200,16 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
     const actionId = request.params.id;
 
     try {
-      const execRes = await executor.executeAction(actionId);
+      const operatorId = process.env.NODE_ENV === 'production' ? request.headers['x-operator-id'] as string : 'dev-user-admin';
+      const execRes = await executor.executeAction(actionId, operatorId);
       const action = await db.remediationAction.findUnique({ where: { id: actionId } });
       const verifRes = action ? await verifier.verifyRecovery(action.incidentId) : null;
 
       return { success: true, data: { execution: execRes, verification: verifRes } };
     } catch (err: unknown) {
+      const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
       const msg = err instanceof Error ? err.message : 'Execution failed';
-      return reply.status(500).send({ success: false, error: { code: 'EXECUTION_FAILED', message: msg } });
+      return reply.status(statusCode).send({ success: false, error: { code: 'EXECUTION_FAILED', message: msg } });
     }
   });
 };

@@ -19,6 +19,7 @@
   "dependencies": {
     "@opspilot/ai": "workspace:*",
     "@opspilot/config": "workspace:*",
+    "@opspilot/remediation": "workspace:*",
     "@opspilot/types": "workspace:*",
     "@prisma/client": "^5.17.0",
     "zod": "^3.23.8"

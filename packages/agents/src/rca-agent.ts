@@ -42,6 +42,7 @@ Recommend specific remediation actions (ROLLBACK_DEPLOYMENT, RESTART_SERVICE, SC
 
   async run(input: RCAInput, ctx: AgentContext): Promise<AgentResult<RCAOutput>> {
     const promptMessage = `Incident: ${input.incidentId} on Service: ${input.serviceName}
+Target Service ID: ${input.serviceId}
 
 Investigation Findings:
 ${input.investigationFindings.map((f) => `- ${f}`).join('\n')}
@@ -51,7 +52,22 @@ ${input.suspectedComponents.join(', ')}
 
 ${input.runbookContext ? `Relevant Runbook Guidance:\n${input.runbookContext}` : ''}
 
-Identify the root cause and recommend safe remediation actions in JSON format.`;
+Identify the root cause and recommend safe remediation actions in JSON format.
+Output MUST use this JSON schema structure:
+{
+  "probableCause": "string describing root cause",
+  "confidence": 0.9,
+  "supportingContext": "string with context and evidence",
+  "recommendedActions": [
+    {
+      "actionType": "ROLLBACK_DEPLOYMENT" | "RESTART_SERVICE" | "SCALE_SERVICE" | "CLEAR_CACHE" | "RETRY_BATCH",
+      "serviceId": "${input.serviceId}",
+      "rationale": "string rationale",
+      "estimatedRisk": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+      "requiresApproval": true | false
+    }
+  ]
+}`;
 
     const response = await this.aiProvider.complete({
       systemPrompt: this.systemPrompt,
@@ -83,6 +99,14 @@ Identify the root cause and recommend safe remediation actions in JSON format.`;
     };
 
     const result = response.data ?? fallback;
+
+    if (result && Array.isArray(result.recommendedActions)) {
+      for (const act of result.recommendedActions) {
+        if (!act.serviceId || act.serviceId === 'undefined' || act.serviceId === input.serviceName) {
+          act.serviceId = input.serviceId;
+        }
+      }
+    }
 
     return {
       result,

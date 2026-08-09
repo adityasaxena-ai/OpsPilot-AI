@@ -128,6 +128,7 @@ export const api = {
   remediation: {
     list: () => request<{ success: boolean; data: unknown[] }>('/remediation'),
     policies: () => request<{ success: boolean; data: unknown[] }>('/remediation/policies'),
+    preview: (id: string) => request<{ success: boolean; data: any }>(`/remediation/action-preview/${id}`),
     propose: (body: { incidentId: string; actionType: string; serviceId: string; rationale?: string }) =>
       request<{ success: boolean; data: unknown }>('/remediation/propose', {
         method: 'POST',

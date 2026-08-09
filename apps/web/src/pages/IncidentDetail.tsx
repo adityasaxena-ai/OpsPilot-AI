@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Activity, AlertTriangle, CheckCircle, XCircle, Sparkles, Send, RefreshCw, FileText } from 'lucide-react';
 import { api } from '@/lib/api';
 import { severityColor, timeAgo, formatDuration } from '@/lib/utils';
+import { RemediationActionCard, type ActionPreviewData } from '@/components/remediation/RemediationActionCard';
+import { RemediationConfirmModal } from '@/components/remediation/RemediationConfirmModal';
 
 interface IncidentEvent {
   id: string;
@@ -48,6 +50,9 @@ export function IncidentDetail() {
     },
   ]);
 
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [previewData, setPreviewData] = useState<ActionPreviewData | null>(null);
+
   const { data: incData, isLoading } = useQuery({
     queryKey: ['incident', id],
     queryFn: () => api.incidents.get(id!),
@@ -77,16 +82,22 @@ export function IncidentDetail() {
   const proposeMutation = useMutation({
     mutationFn: (body: { actionType: string; serviceId: string; rationale?: string }) =>
       api.remediation.propose({ incidentId: id!, ...body }),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
       refetchRemediation();
+      if (res?.data?.actionId) {
+        api.remediation.preview(res.data.actionId).then((pRes) => {
+          if (pRes?.data) setPreviewData(pRes.data);
+        });
+      }
     },
   });
 
   const approveMutation = useMutation({
     mutationFn: (actionId: string) => api.remediation.approve(actionId),
     onSuccess: () => {
+      setIsConfirmModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
       refetchRemediation();
@@ -96,6 +107,7 @@ export function IncidentDetail() {
   const rejectMutation = useMutation({
     mutationFn: (actionId: string) => api.remediation.reject(actionId, 'Rejected by operator in Control Tower'),
     onSuccess: () => {
+      setIsConfirmModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
       refetchRemediation();
@@ -122,6 +134,7 @@ export function IncidentDetail() {
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
       refetchEvidence();
+      refetchRemediation();
     },
   });
 
@@ -152,101 +165,99 @@ export function IncidentDetail() {
     chatMutation.mutate(userText);
   };
 
-  const incident = incData?.data as Record<string, unknown> | undefined;
+  const incident = (incData?.data as Record<string, unknown> | undefined) ?? {};
   const timeline = (timelineData?.data as IncidentEvent[] | undefined) ?? [];
   const evidence = (evidenceData?.data as EvidenceItem[] | undefined) ?? [];
-  const topology = (topologyData?.data as Record<string, unknown> | undefined);
+
+  const svc = incident['service'] as { name: string; slug: string; tier: string } | undefined;
+  const status = (incident['status'] as string) ?? 'DETECTED';
+  const severity = (incident['severity'] as string) ?? 'P3';
+  const rcaResult = incident['rcaResult']
+    ? [incident['rcaResult'] as Record<string, unknown>]
+    : ((incident['rcaResults'] as Array<Record<string, unknown>>) ?? []);
+  const postmortem = incident['postmortem'] as Record<string, unknown> | undefined;
+
+  const mttr = incident['mttrSeconds']
+    ? (incident['mttrSeconds'] as number)
+    : incident['resolvedAt'] && incident['detectedAt']
+    ? Math.round(
+        (new Date(incident['resolvedAt'] as string).getTime() -
+          new Date(incident['detectedAt'] as string).getTime()) /
+          1000,
+      )
+    : null;
+
+  // Auto-fetch preview when pendingAction changes
+  const actionsList = (remediationData?.data as Array<Record<string, unknown>> | undefined) ?? [];
+  const incidentActions = actionsList.filter((a) => a['incidentId'] === id);
+  const activeAction = incidentActions.find(
+    (a) => a['status'] === 'AWAITING_APPROVAL' || a['status'] === 'APPROVED' || a['status'] === 'EXECUTING' || a['status'] === 'SUCCEEDED'
+  );
+
+  useEffect(() => {
+    if (activeAction?.['id']) {
+      api.remediation.preview(activeAction['id'] as string).then((res) => {
+        if (res?.data) setPreviewData(res.data);
+      }).catch(() => {});
+    }
+  }, [activeAction?.['id']]);
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="skeleton h-8 w-64" />
-        <div className="skeleton h-48 w-full" />
+      <div className="flex items-center justify-center h-64 text-sm" style={{ color: 'hsl(var(--text-tertiary))' }}>
+        Loading incident details...
       </div>
     );
   }
 
-  if (!incident) {
+  if (!incident['id']) {
     return (
-      <div className="text-center py-16">
-        <p style={{ color: 'hsl(var(--text-tertiary))' }}>Incident not found</p>
-        <Link to="/incidents" className="text-sm mt-2 block" style={{ color: 'hsl(220 90% 65%)' }}>
-          ← Back to Incidents
+      <div className="text-center py-12">
+        <h2 className="text-lg font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>Incident Not Found</h2>
+        <Link to="/incidents" className="text-xs text-indigo-400 mt-2 inline-block hover:underline">
+          Back to Incidents
         </Link>
       </div>
     );
   }
 
-  const svc = incident['service'] as { name: string } | undefined;
-  const severity = incident['severity'] as string;
-  const status = incident['status'] as string;
-  const mttr = incident['mttrSeconds'] as number | null;
-  const rcaResult = incident['rcaResults'] as Array<Record<string, unknown>> | undefined;
-  const postmortem = incident['postmortem'] as Record<string, unknown> | undefined;
-
   return (
-    <div className="space-y-5 fade-in">
-      {/* Top Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Top Header & Breadcrumb */}
+      <div>
         <Link
           to="/incidents"
-          className="flex items-center gap-1.5 text-sm transition-opacity hover:opacity-70"
+          className="inline-flex items-center gap-1 text-xs font-medium mb-3 transition-colors"
           style={{ color: 'hsl(var(--text-tertiary))' }}
         >
           <ArrowLeft size={14} /> Back to Incidents
         </Link>
 
-        {/* AI Action Triggers */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => investigateMutation.mutate()}
-            disabled={investigateMutation.isPending}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all hover:opacity-80"
-            style={{
-              background: 'hsl(265 85% 65% / 0.15)',
-              borderColor: 'hsl(265 85% 65% / 0.4)',
-              color: 'hsl(265 85% 75%)',
-            }}
-          >
-            {investigateMutation.isPending ? (
-              <RefreshCw size={13} className="animate-spin" />
-            ) : (
-              <Sparkles size={13} />
-            )}
-            Run AI Investigation
-          </button>
-
-          <button
-            onClick={() => postmortemMutation.mutate()}
-            disabled={postmortemMutation.isPending}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all hover:opacity-80"
-            style={{
-              background: 'hsl(var(--bg-surface-2))',
-              borderColor: 'hsl(var(--border))',
-              color: 'hsl(var(--text-secondary))',
-            }}
-          >
-            {postmortemMutation.isPending ? (
-              <RefreshCw size={13} className="animate-spin" />
-            ) : (
-              <FileText size={13} />
-            )}
-            Generate AI Postmortem
-          </button>
-        </div>
-      </div>
-
-      {/* Incident Header Card */}
-      <div
-        className="rounded-xl border p-5"
-        style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
-      >
-        {/* State Machine Transition Bar */}
-        <div className="mb-4 pb-4 border-b flex items-center justify-between" style={{ borderColor: 'hsl(var(--border))' }}>
+        {/* Action Toolbar */}
+        <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium">Lifecycle State:</span>
-            <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-              {status}
+            <button
+              onClick={() => investigateMutation.mutate()}
+              disabled={investigateMutation.isPending}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-purple-950/40"
+            >
+              <Sparkles size={14} className={investigateMutation.isPending ? 'animate-spin' : ''} />
+              {investigateMutation.isPending ? 'Running AI Investigation...' : 'Run AI Investigation'}
+            </button>
+
+            {['RESOLVED', 'CLOSED'].includes(status) && !postmortem && (
+              <button
+                onClick={() => postmortemMutation.mutate()}
+                disabled={postmortemMutation.isPending}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 transition-all"
+              >
+                <FileText size={14} />
+                {postmortemMutation.isPending ? 'Generating...' : 'Generate Postmortem'}
+              </button>
+            )}
+
+            <span className="text-xs font-mono ml-2" style={{ color: 'hsl(var(--text-tertiary))' }}>
+              ID: {id}
             </span>
           </div>
 
@@ -372,142 +383,64 @@ export function IncidentDetail() {
         </div>
       )}
 
-      {/* Governed Remediation & Human Approval Workflow Card */}
-      {(() => {
-        const actions = (remediationData?.data as Array<Record<string, unknown>> | undefined) ?? [];
-        const incidentActions = actions.filter((a) => a['incidentId'] === id);
-        const pendingAction = incidentActions.find((a) => a['status'] === 'AWAITING_APPROVAL' || a['status'] === 'PROPOSED');
-        const executedActions = incidentActions.filter((a) => a['status'] === 'SUCCEEDED' || a['status'] === 'EXECUTING');
-
-        const recActions = (rcaResult?.[0]?.['recommendedActions'] as Array<Record<string, unknown>>) ?? [];
-
-        return (
-          <div
-            className="rounded-xl border p-5 space-y-4 fade-in"
-            style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
-                  Governed Autonomous Remediation
-                </h2>
-                <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
-                  Policy Engine & Risk Engine Guardrails
-                </p>
-              </div>
-
-              {pendingAction && (
-                <span
-                  className="text-xs px-2.5 py-1 rounded-full font-medium"
-                  style={{ background: 'hsl(38 92% 50% / 0.15)', color: 'hsl(38 92% 60%)' }}
-                >
-                  Approval Pending (15m Expiry)
-                </span>
-              )}
-            </div>
-
-            {/* Pending Approval Details */}
-            {pendingAction ? (
-              <div
-                className="p-4 rounded-xl border space-y-3"
-                style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(38 92% 50% / 0.3)' }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold" style={{ color: 'hsl(var(--text-primary))' }}>
-                      {pendingAction['actionType'] as string}
-                    </span>
-                    <span
-                      className="text-xs px-2 py-0.5 rounded font-mono font-medium"
-                      style={{
-                        background: (pendingAction['riskScore'] as number) > 60
-                          ? 'hsl(0 85% 60% / 0.15)'
-                          : 'hsl(142 72% 45% / 0.15)',
-                        color: (pendingAction['riskScore'] as number) > 60
-                          ? 'hsl(0 85% 65%)'
-                          : 'hsl(142 72% 55%)',
-                      }}
-                    >
-                      Risk: {pendingAction['riskScore'] as number}/100 ({pendingAction['riskLevel'] as string})
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => approveMutation.mutate(pendingAction['id'] as string)}
-                      disabled={approveMutation.isPending}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80 flex items-center gap-1.5"
-                      style={{ background: 'hsl(142 72% 45%)', color: 'white' }}
-                    >
-                      {approveMutation.isPending ? <RefreshCw size={12} className="animate-spin" /> : <CheckCircle size={12} />}
-                      Approve & Execute
-                    </button>
-
-                    <button
-                      onClick={() => rejectMutation.mutate(pendingAction['id'] as string)}
-                      disabled={rejectMutation.isPending}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all hover:opacity-80 flex items-center gap-1.5"
-                      style={{ background: 'hsl(0 85% 55% / 0.1)', borderColor: 'hsl(0 85% 55% / 0.3)', color: 'hsl(0 85% 65%)' }}
-                    >
-                      {rejectMutation.isPending ? <RefreshCw size={12} className="animate-spin" /> : <XCircle size={12} />}
-                      Reject Action
-                    </button>
-                  </div>
-                </div>
-
-                <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}>
-                  Action requires human confirmation per Policy Engine risk ceiling rules.
-                </p>
-              </div>
-            ) : recActions.length > 0 ? (
+      {/* Governed Remediation Action Preview & Approval Card */}
+      {previewData ? (
+        <RemediationActionCard
+          preview={previewData}
+          onReview={() => setIsConfirmModalOpen(true)}
+          onApproveClick={() => setIsConfirmModalOpen(true)}
+          isExecuting={approveMutation.isPending}
+        />
+      ) : (
+        (() => {
+          const recActions = (rcaResult?.[0]?.['recommendedActions'] as Array<Record<string, unknown>>) ?? [];
+          if (recActions.length === 0) return null;
+          return (
+            <div className="rounded-xl border p-5 space-y-3 bg-slate-900/80 border-slate-800">
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                AI Recommended Remediation Options
+              </h3>
               <div className="grid grid-cols-2 gap-3">
                 {recActions.map((act, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-lg border flex flex-col justify-between"
-                    style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}
-                  >
+                  <div key={idx} className="p-3.5 bg-slate-950/60 rounded-lg border border-slate-800 flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold" style={{ color: 'hsl(var(--text-primary))' }}>
-                          {act['actionType'] as string}
-                        </span>
-                        <span className="text-xs text-tertiary">
-                          Est Risk: {act['estimatedRisk'] as string}
-                        </span>
-                      </div>
-                      <p className="text-xs mt-1" style={{ color: 'hsl(var(--text-secondary))' }}>
-                        {act['rationale'] as string}
-                      </p>
+                      <span className="text-xs font-bold text-slate-200 block">{act['actionType'] as string}</span>
+                      <p className="text-xs text-slate-400 mt-1">{act['rationale'] as string}</p>
                     </div>
-
                     <button
-                      onClick={() => proposeMutation.mutate({
-                        actionType: act['actionType'] as string,
-                        serviceId: (act['serviceId'] as string) ?? incident['serviceId'] as string,
-                        rationale: act['rationale'] as string,
-                      })}
+                      onClick={() =>
+                        proposeMutation.mutate({
+                          actionType: act['actionType'] as string,
+                          serviceId: (act['serviceId'] as string) ?? (incident['serviceId'] as string),
+                          rationale: act['rationale'] as string,
+                        })
+                      }
                       disabled={proposeMutation.isPending}
-                      className="mt-3 w-full py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80"
-                      style={{ background: 'hsl(220 90% 56%)', color: 'white' }}
+                      className="mt-3 w-full py-1.5 text-xs font-semibold rounded bg-purple-600 hover:bg-purple-500 text-white transition-all"
                     >
-                      {proposeMutation.isPending ? 'Evaluating Risk...' : 'Propose Action for Governance'}
+                      {proposeMutation.isPending ? 'Evaluating Policy...' : 'Prepare Remediation Action'}
                     </button>
                   </div>
                 ))}
               </div>
-            ) : executedActions.length > 0 ? (
-              <div className="p-3 rounded-lg border text-xs" style={{ background: 'hsl(142 72% 45% / 0.1)', borderColor: 'hsl(142 72% 45% / 0.3)', color: 'hsl(142 72% 55%)' }}>
-                ✅ Remediation executed successfully on service. Telemetry baseline verified.
-              </div>
-            ) : (
-              <p className="text-xs" style={{ color: 'hsl(var(--text-tertiary))' }}>
-                Run AI Investigation above to generate recommended remediation actions.
-              </p>
-            )}
-          </div>
-        );
-      })()}
+            </div>
+          );
+        })()
+      )}
+
+      {/* Confirmation Modal */}
+      <RemediationConfirmModal
+        isOpen={isConfirmModalOpen}
+        preview={previewData}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={() => {
+          if (previewData?.actionId) {
+            approveMutation.mutate(previewData.actionId);
+          }
+        }}
+        isConfirming={approveMutation.isPending}
+      />
 
       {/* Main Grid */}
       <div className="grid grid-cols-5 gap-4">

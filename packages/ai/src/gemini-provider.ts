@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { AIProvider, AIPrompt, AIResponse } from './provider.js';
+import { parseAndValidateLlmJson } from './json-utils.js';
 
 export class GeminiProvider implements AIProvider {
   name = 'gemini';
@@ -41,12 +42,7 @@ export class GeminiProvider implements AIProvider {
 
     let data: T | undefined;
     if (prompt.responseSchema) {
-      try {
-        const parsedJson = JSON.parse(text);
-        data = prompt.responseSchema.parse(parsedJson);
-      } catch (err) {
-        console.warn('[GeminiProvider] JSON validation warning:', err);
-      }
+      data = parseAndValidateLlmJson(text, prompt.responseSchema);
     }
 
     return {

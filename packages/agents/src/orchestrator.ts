@@ -168,7 +168,7 @@ export class AIOrchestrator {
     );
 
     // Store RCA result
-    const rcaRecord = await this.db.rCAResult.create({
+    await this.db.rCAResult.create({
       data: {
         incidentId,
         probableCause: rcaRes.result.probableCause,
@@ -195,6 +195,34 @@ export class AIOrchestrator {
         metadata: rcaRes.result as never,
       },
     });
+
+    // 6. Auto-propose top recommended remediation action
+    const topAction = rcaRes.result.recommendedActions?.[0];
+    if (topAction) {
+      try {
+        const { RemediationExecutor } = await import('@opspilot/remediation');
+        const executor = new RemediationExecutor(this.db);
+        const propRes = await executor.proposeAction({
+          incidentId,
+          actionType: topAction.actionType,
+          serviceId: topAction.serviceId || incident.serviceId,
+          rationale: topAction.rationale || rcaRes.result.probableCause,
+          proposedByAi: true,
+        });
+
+        await this.db.incidentEvent.create({
+          data: {
+            incidentId,
+            eventType: 'AI_REMEDIATION_RECOMMENDED',
+            actorType: 'AI',
+            description: `AI recommended remediation action: ${topAction.actionType} (${propRes.reason})`,
+            metadata: { actionId: propRes.actionId, actionType: topAction.actionType, riskScore: propRes.riskScore },
+          },
+        });
+      } catch (err: unknown) {
+        console.warn(`[AIOrchestrator] Automatic remediation proposal warning:`, err);
+      }
+    }
 
     return {
       incidentId,

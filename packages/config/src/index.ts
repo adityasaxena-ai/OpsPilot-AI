@@ -12,11 +12,13 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
   // AI Provider
-  AI_PROVIDER: z.enum(['mock', 'gemini', 'openai']).default('mock'),
-  AI_MODEL: z.string().default('gemini-2.0-flash'),
-  AI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
-  AI_MAX_TOKENS: z.coerce.number().int().default(4096),
-  GEMINI_API_KEY: z.string().optional(),
+AI_PROVIDER: z.enum(['mock', 'gemini', 'upstage', 'openai']).default('mock'),
+AI_MODEL: z.string().default('gemini-2.0-flash'),
+AI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
+AI_MAX_TOKENS: z.coerce.number().int().default(4096),
+GEMINI_API_KEY: z.string().optional(),
+UPSTAGE_API_KEY: z.string().optional(),
+UPSTAGE_MODEL: z.string().default('solar-mini'),
 
   // Simulation
   SIMULATION_MODE: z

@@ -200,6 +200,9 @@ importers:
       '@opspilot/config':
         specifier: workspace:*
         version: link:../config
+      '@opspilot/remediation':
+        specifier: workspace:*
+        version: link:../remediation
       '@opspilot/types':
         specifier: workspace:*
         version: link:../types
