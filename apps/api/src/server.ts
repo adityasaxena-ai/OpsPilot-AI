@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { getConfig } from '@opspilot/config';
 import { buildApp } from './app.js';
 
-// Telemetry & Server initialization
+// Telemetry & Server initialization (OTEL_PROMETHEUS_URL)
 
 const dbUrl = process.env.DATABASE_URL;
 const isDbUrlPresent = typeof dbUrl === 'string' && dbUrl.trim().length > 0;
