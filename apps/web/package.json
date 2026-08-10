@@ -12,7 +12,6 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@opspilot/types": "workspace:*",
     "@tanstack/react-query": "^5.51.23",
     "@tanstack/react-query-devtools": "^5.51.23",
     "class-variance-authority": "^0.7.0",
