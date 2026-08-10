@@ -12,7 +12,61 @@ export class ReplayTelemetryProvider implements TelemetryProvider {
   constructor(initialRecording?: TelemetryRecording) {
     if (initialRecording) {
       this.recording = initialRecording;
+    } else {
+      this.recording = this.createSampleRecording();
     }
+  }
+
+  ensureRecording(): void {
+    if (!this.recording) {
+      this.recording = this.createSampleRecording();
+    }
+  }
+
+  private createSampleRecording(): TelemetryRecording {
+    const serviceIds = ['payments-api', 'fraud-engine', 'auth-service', 'payment-db', 'redis-cache'];
+    const frames: TelemetryRecordingFrame[] = [];
+    const now = Date.now();
+
+    for (let f = 0; f < 5; f++) {
+      const metrics: Record<string, ServiceTelemetry> = {};
+      for (const serviceId of serviceIds) {
+        const isFraud = serviceId === 'fraud-engine';
+        const isPayments = serviceId === 'payments-api';
+        const cpu = isFraud ? 45 + f * 10 : 20 + f * 2;
+        const latency = isFraud ? 120 + f * 150 : isPayments ? 40 + f * 15 : 30 + f * 5;
+        const errRate = isFraud && f >= 3 ? 8.5 : 0.1;
+
+        metrics[serviceId] = {
+          serviceId,
+          serviceName: serviceId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          cpuPercent: Math.min(98, cpu),
+          memoryPercent: 35 + f * 3,
+          latencyP50Ms: Math.round(latency * 0.4),
+          latencyP95Ms: Math.round(latency * 0.8),
+          latencyP99Ms: latency,
+          errorRatePercent: errRate,
+          throughputRps: 150 - f * 10,
+          dbConnectionsActive: 10 + f * 2,
+          queueDepth: f * 3,
+          isHealthy: errRate < 5.0 && latency < 1000,
+          timestamp: new Date(now - (5 - f) * 10000).toISOString(),
+        };
+      }
+      frames.push({
+        timestamp: new Date(now - (5 - f) * 10000).toISOString(),
+        metrics,
+      });
+    }
+
+    return {
+      id: 'sample_built_in_recording',
+      title: 'Production Telemetry Incident Replay (Sample)',
+      recordedAt: new Date().toISOString(),
+      frameCount: frames.length,
+      durationSeconds: 50,
+      frames,
+    };
   }
 
   loadRecording(recording: TelemetryRecording): void {
@@ -44,6 +98,7 @@ export class ReplayTelemetryProvider implements TelemetryProvider {
   }
 
   async getStatus(): Promise<TelemetryStatus> {
+    this.ensureRecording();
     return {
       providerName: this.name,
       status: 'HEALTHY',

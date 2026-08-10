@@ -15,12 +15,31 @@ export class OpenTelemetryProvider implements TelemetryProvider {
   private cacheTtlMs: number;
 
   constructor(config?: OtelProviderConfig) {
-    this.prometheusUrl = config?.prometheusUrl ?? process.env['OTEL_PROMETHEUS_URL'] ?? 'http://localhost:9090';
+    const explicitUrl = config?.prometheusUrl ?? process.env['OTEL_PROMETHEUS_URL'];
+    if (explicitUrl && explicitUrl.trim().length > 0) {
+      this.prometheusUrl = explicitUrl.trim();
+    } else if (process.env.NODE_ENV === 'production') {
+      this.prometheusUrl = '';
+    } else {
+      this.prometheusUrl = 'http://localhost:9090';
+    }
     this.cacheTtlMs = config?.cacheTtlMs ?? 5000;
     this.serviceMapper = config?.customServiceMapper ?? new ServiceMapper();
   }
 
   async getStatus(): Promise<TelemetryStatus> {
+    if (!this.prometheusUrl) {
+      return {
+        providerName: this.name,
+        status: 'UNAVAILABLE',
+        activeSource: 'OTel Live unavailable — production Prometheus endpoint is not configured. Using Standby telemetry.',
+        isReplaying: false,
+        isRecording: false,
+        lastUpdated: new Date().toISOString(),
+        details: { configured: false },
+      };
+    }
+
     try {
       const res = await fetch(`${this.prometheusUrl}/api/v1/query?query=up`, {
         signal: AbortSignal.timeout(3000),
@@ -60,6 +79,10 @@ export class OpenTelemetryProvider implements TelemetryProvider {
   }
 
   async fetchTelemetry(serviceIds: string[]): Promise<Record<string, ServiceTelemetry>> {
+    if (!this.prometheusUrl) {
+      throw new Error('OTel Live unavailable — production Prometheus endpoint is not configured.');
+    }
+
     // 1. Check Cache
     const now = Date.now();
     const cached = this.cache.get('latest');

@@ -22,7 +22,9 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
     if (provider === 'mock') {
       setTelemetryProvider(new MockTelemetryProvider());
     } else if (provider === 'replay') {
-      setTelemetryProvider(getReplayProvider());
+      const replay = getReplayProvider();
+      replay.ensureRecording();
+      setTelemetryProvider(replay);
     } else if (provider === 'otel') {
       setTelemetryProvider(new OpenTelemetryProvider());
     } else {
@@ -68,6 +70,7 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
   // POST /api/v1/telemetry/replay/start — Start replaying loaded recording
   app.post('/replay/start', async () => {
     const replay = getReplayProvider();
+    replay.ensureRecording();
     setTelemetryProvider(replay);
 
     const status = await replay.getStatus();

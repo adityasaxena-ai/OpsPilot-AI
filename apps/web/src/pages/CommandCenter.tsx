@@ -188,12 +188,16 @@ export function CommandCenter() {
       <div
         className="p-4 rounded-xl border flex items-center justify-between"
         style={{
-          background: telemetryStatus?.status === 'UNAVAILABLE'
+          background: telemetryStatus?.providerName === 'replay'
+            ? 'hsl(265 85% 65% / 0.1)'
+            : telemetryStatus?.status === 'UNAVAILABLE'
             ? 'hsl(0 85% 60% / 0.1)'
             : telemetryStatus?.providerName === 'otel'
             ? 'hsl(142 72% 45% / 0.1)'
             : 'hsl(var(--bg-surface-2))',
-          borderColor: telemetryStatus?.status === 'UNAVAILABLE'
+          borderColor: telemetryStatus?.providerName === 'replay'
+            ? 'hsl(265 85% 65% / 0.3)'
+            : telemetryStatus?.status === 'UNAVAILABLE'
             ? 'hsl(0 85% 60% / 0.3)'
             : telemetryStatus?.providerName === 'otel'
             ? 'hsl(142 72% 45% / 0.3)'
@@ -204,10 +208,14 @@ export function CommandCenter() {
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs"
             style={{
-              background: telemetryStatus?.status === 'UNAVAILABLE'
+              background: telemetryStatus?.providerName === 'replay'
+                ? 'hsl(265 85% 65% / 0.2)'
+                : telemetryStatus?.status === 'UNAVAILABLE'
                 ? 'hsl(0 85% 60% / 0.2)'
                 : 'hsl(142 72% 45% / 0.2)',
-              color: telemetryStatus?.status === 'UNAVAILABLE'
+              color: telemetryStatus?.providerName === 'replay'
+                ? 'hsl(265 85% 70%)'
+                : telemetryStatus?.status === 'UNAVAILABLE'
                 ? 'hsl(0 85% 65%)'
                 : 'hsl(142 72% 55%)',
             }}
@@ -223,15 +231,23 @@ export function CommandCenter() {
               <span
                 className="text-xs px-2 py-0.5 rounded-full font-medium"
                 style={{
-                  background: telemetryStatus?.status === 'HEALTHY'
+                  background: telemetryStatus?.providerName === 'replay'
+                    ? 'hsl(265 85% 65% / 0.15)'
+                    : telemetryStatus?.status === 'HEALTHY'
                     ? 'hsl(142 72% 45% / 0.15)'
                     : 'hsl(0 85% 60% / 0.15)',
-                  color: telemetryStatus?.status === 'HEALTHY'
+                  color: telemetryStatus?.providerName === 'replay'
+                    ? 'hsl(265 85% 70%)'
+                    : telemetryStatus?.status === 'HEALTHY'
                     ? 'hsl(142 72% 55%)'
                     : 'hsl(0 85% 65%)',
                 }}
               >
-                {telemetryStatus?.status === 'UNAVAILABLE' ? 'Telemetry Source Unavailable (Standby Fallback)' : telemetryStatus?.status ?? 'HEALTHY'}
+                {telemetryStatus?.providerName === 'replay'
+                  ? 'REPLAY MODE ACTIVE'
+                  : telemetryStatus?.status === 'UNAVAILABLE'
+                  ? 'Telemetry Source Unavailable (Standby Fallback)'
+                  : telemetryStatus?.status ?? 'HEALTHY'}
               </span>
             </div>
             <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
