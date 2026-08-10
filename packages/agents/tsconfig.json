@@ -2,7 +2,19 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "paths": {
+      "@opspilot/types": ["../types/src/index.ts"],
+      "@opspilot/config": ["../config/src/index.ts"],
+      "@opspilot/ai": ["../ai/src/index.ts"],
+      "@opspilot/remediation": ["../remediation/src/index.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    { "path": "../types" },
+    { "path": "../config" },
+    { "path": "../ai" },
+    { "path": "../remediation" }
+  ]
 }

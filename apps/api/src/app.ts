@@ -74,6 +74,12 @@ export async function buildApp() {
   });
 
   // ── Routes ──────────────────────────────────────────────────────────────
+  app.get('/', async () => ({
+    name: 'OpsPilot API',
+    status: 'healthy',
+    version: '0.1.0',
+    health: '/health',
+  }));
   await app.register(healthRoutes, { prefix: '/health' });
   await app.register(eventsRoutes, { prefix: '/api/v1/events' });
   await app.register(alertsRoutes, { prefix: '/api/v1/alerts' });
