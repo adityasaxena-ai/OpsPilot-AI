@@ -190,17 +190,21 @@ export function CommandCenter() {
         style={{
           background: telemetryStatus?.providerName === 'replay'
             ? 'hsl(265 85% 65% / 0.1)'
-            : telemetryStatus?.status === 'UNAVAILABLE'
-            ? 'hsl(0 85% 60% / 0.1)'
             : telemetryStatus?.providerName === 'otel'
-            ? 'hsl(142 72% 45% / 0.1)'
+            ? telemetryStatus?.status === 'HEALTHY'
+              ? 'hsl(142 72% 45% / 0.1)'
+              : telemetryStatus?.details?.configured === false
+              ? 'hsl(38 92% 50% / 0.1)'
+              : 'hsl(0 85% 60% / 0.1)'
             : 'hsl(var(--bg-surface-2))',
           borderColor: telemetryStatus?.providerName === 'replay'
             ? 'hsl(265 85% 65% / 0.3)'
-            : telemetryStatus?.status === 'UNAVAILABLE'
-            ? 'hsl(0 85% 60% / 0.3)'
             : telemetryStatus?.providerName === 'otel'
-            ? 'hsl(142 72% 45% / 0.3)'
+            ? telemetryStatus?.status === 'HEALTHY'
+              ? 'hsl(142 72% 45% / 0.3)'
+              : telemetryStatus?.details?.configured === false
+              ? 'hsl(38 92% 50% / 0.3)'
+              : 'hsl(0 85% 60% / 0.3)'
             : 'hsl(var(--border))',
         }}
       >
@@ -210,14 +214,18 @@ export function CommandCenter() {
             style={{
               background: telemetryStatus?.providerName === 'replay'
                 ? 'hsl(265 85% 65% / 0.2)'
-                : telemetryStatus?.status === 'UNAVAILABLE'
-                ? 'hsl(0 85% 60% / 0.2)'
-                : 'hsl(142 72% 45% / 0.2)',
+                : telemetryStatus?.status === 'HEALTHY'
+                ? 'hsl(142 72% 45% / 0.2)'
+                : telemetryStatus?.details?.configured === false
+                ? 'hsl(38 92% 50% / 0.2)'
+                : 'hsl(0 85% 60% / 0.2)',
               color: telemetryStatus?.providerName === 'replay'
                 ? 'hsl(265 85% 70%)'
-                : telemetryStatus?.status === 'UNAVAILABLE'
-                ? 'hsl(0 85% 65%)'
-                : 'hsl(142 72% 55%)',
+                : telemetryStatus?.status === 'HEALTHY'
+                ? 'hsl(142 72% 55%)'
+                : telemetryStatus?.details?.configured === false
+                ? 'hsl(38 92% 60%)'
+                : 'hsl(0 85% 65%)',
             }}
           >
             {telemetryStatus?.providerName?.toUpperCase() ?? 'OTEL'}
@@ -235,19 +243,25 @@ export function CommandCenter() {
                     ? 'hsl(265 85% 65% / 0.15)'
                     : telemetryStatus?.status === 'HEALTHY'
                     ? 'hsl(142 72% 45% / 0.15)'
+                    : telemetryStatus?.details?.configured === false
+                    ? 'hsl(38 92% 50% / 0.15)'
                     : 'hsl(0 85% 60% / 0.15)',
                   color: telemetryStatus?.providerName === 'replay'
                     ? 'hsl(265 85% 70%)'
                     : telemetryStatus?.status === 'HEALTHY'
                     ? 'hsl(142 72% 55%)'
+                    : telemetryStatus?.details?.configured === false
+                    ? 'hsl(38 92% 60%)'
                     : 'hsl(0 85% 65%)',
                 }}
               >
                 {telemetryStatus?.providerName === 'replay'
                   ? 'REPLAY MODE ACTIVE'
-                  : telemetryStatus?.status === 'UNAVAILABLE'
-                  ? 'Telemetry Source Unavailable (Standby Fallback)'
-                  : telemetryStatus?.status ?? 'HEALTHY'}
+                  : telemetryStatus?.status === 'HEALTHY'
+                  ? 'HEALTHY'
+                  : telemetryStatus?.details?.configured === false
+                  ? 'NOT CONFIGURABLE'
+                  : 'UNAVAILABLE (Standby Fallback)'}
               </span>
             </div>
             <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
@@ -261,9 +275,27 @@ export function CommandCenter() {
             onClick={() => api.telemetry.setProvider('otel').then(() => refetchTelemetry())}
             className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80"
             style={{
-              background: telemetryStatus?.providerName === 'otel' ? 'hsl(142 72% 45% / 0.2)' : 'transparent',
-              borderColor: telemetryStatus?.providerName === 'otel' ? 'hsl(142 72% 45% / 0.4)' : 'hsl(var(--border))',
-              color: telemetryStatus?.providerName === 'otel' ? 'hsl(142 72% 55%)' : 'hsl(var(--text-secondary))',
+              background: telemetryStatus?.providerName === 'otel'
+                ? telemetryStatus?.status === 'HEALTHY'
+                  ? 'hsl(142 72% 45% / 0.2)'
+                  : telemetryStatus?.details?.configured === false
+                  ? 'hsl(38 92% 50% / 0.2)'
+                  : 'hsl(0 85% 60% / 0.2)'
+                : 'transparent',
+              borderColor: telemetryStatus?.providerName === 'otel'
+                ? telemetryStatus?.status === 'HEALTHY'
+                  ? 'hsl(142 72% 45% / 0.4)'
+                  : telemetryStatus?.details?.configured === false
+                  ? 'hsl(38 92% 50% / 0.4)'
+                  : 'hsl(0 85% 60% / 0.4)'
+                : 'hsl(var(--border))',
+              color: telemetryStatus?.providerName === 'otel'
+                ? telemetryStatus?.status === 'HEALTHY'
+                  ? 'hsl(142 72% 55%)'
+                  : telemetryStatus?.details?.configured === false
+                  ? 'hsl(38 92% 60%)'
+                  : 'hsl(0 85% 65%)'
+                : 'hsl(var(--text-secondary))',
             }}
           >
             OTel Live

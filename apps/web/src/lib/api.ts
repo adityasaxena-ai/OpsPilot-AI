@@ -182,6 +182,7 @@ export const api = {
           activeSource: string;
           isReplaying: boolean;
           isRecording: boolean;
+          details?: Record<string, unknown>;
         };
       }>('/telemetry/status'),
     setProvider: (provider: 'otel' | 'mock' | 'replay') =>

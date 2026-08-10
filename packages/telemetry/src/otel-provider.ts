@@ -37,48 +37,54 @@ export class OpenTelemetryProvider implements TelemetryProvider {
       return {
         providerName: this.name,
         status: 'UNAVAILABLE',
-        activeSource: 'OTel Live unavailable — production Prometheus endpoint is not configured. Using Standby telemetry.',
+        activeSource: 'OpenTelemetry Live — production endpoint not configured',
         isReplaying: false,
         isRecording: false,
         lastUpdated: new Date().toISOString(),
-        details: { configured: false },
+        details: { configured: false, reachable: false },
       };
     }
 
     try {
       const res = await fetch(`${this.prometheusUrl}/api/v1/query?query=up`, {
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(4000),
       });
 
       if (!res.ok) {
         return {
           providerName: this.name,
-          status: 'DEGRADED',
-          activeSource: `Prometheus at ${this.prometheusUrl} (HTTP ${res.status})`,
+          status: 'UNAVAILABLE',
+          activeSource: 'OpenTelemetry / Prometheus — connection unavailable',
           isReplaying: false,
           isRecording: false,
           lastUpdated: new Date().toISOString(),
+          details: { configured: true, reachable: false, httpStatus: res.status },
         };
       }
+
+      const isLocal = this.prometheusUrl.includes('localhost') || this.prometheusUrl.includes('127.0.0.1');
+      const activeSource = isLocal
+        ? `OpenTelemetry / Prometheus — Local (${this.prometheusUrl})`
+        : 'OpenTelemetry / Prometheus — Production';
 
       return {
         providerName: this.name,
         status: 'HEALTHY',
-        activeSource: `OpenTelemetry Demo via Prometheus (${this.prometheusUrl})`,
+        activeSource,
         isReplaying: false,
         isRecording: false,
         lastUpdated: new Date().toISOString(),
+        details: { configured: true, reachable: true },
       };
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unreachable';
       return {
         providerName: this.name,
         status: 'UNAVAILABLE',
-        activeSource: `OpenTelemetry Demo (${this.prometheusUrl}) — ${msg}`,
+        activeSource: 'OpenTelemetry / Prometheus — connection unavailable',
         isReplaying: false,
         isRecording: false,
         lastUpdated: new Date().toISOString(),
-        details: { error: msg },
+        details: { configured: true, reachable: false, error: err instanceof Error ? err.message : 'Unreachable' },
       };
     }
   }
