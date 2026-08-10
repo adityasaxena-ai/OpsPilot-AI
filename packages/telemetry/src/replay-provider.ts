@@ -99,20 +99,20 @@ export class ReplayTelemetryProvider implements TelemetryProvider {
 
   async getStatus(): Promise<TelemetryStatus> {
     this.ensureRecording();
+    const title = this.recording?.title ?? 'Production Telemetry Incident Replay (Sample)';
+    const totalFrames = this.recording?.frameCount ?? 5;
     return {
       providerName: this.name,
       status: 'HEALTHY',
       activeSource: this.isRecording
         ? `Recording live stream ("${this.recordingTitle}")`
-        : this.recording
-        ? `Replaying recording "${this.recording.title}" (Frame ${this.currentFrameIndex + 1}/${this.recording.frameCount})`
-        : 'Standby (No recording loaded)',
-      isReplaying: !!this.recording && !this.isRecording,
+        : `Replaying recording "${title}" (Frame ${this.currentFrameIndex + 1}/${totalFrames})`,
+      isReplaying: !this.isRecording,
       isRecording: this.isRecording,
       lastUpdated: new Date().toISOString(),
       details: {
         currentFrame: this.currentFrameIndex,
-        totalFrames: this.recording?.frameCount ?? 0,
+        totalFrames,
       },
     };
   }
