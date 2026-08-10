@@ -2,6 +2,20 @@ import 'dotenv/config';
 import { getConfig } from '@opspilot/config';
 import { buildApp } from './app.js';
 
+const dbUrl = process.env.DATABASE_URL;
+const isDbUrlPresent = typeof dbUrl === 'string' && dbUrl.trim().length > 0;
+
+console.log('🔍 === OPSPILOT RUNTIME DIAGNOSTIC ===');
+console.log(`NODE_ENV: ${process.env.NODE_ENV ?? 'undefined'}`);
+console.log(`Working Directory: ${process.cwd()}`);
+if (isDbUrlPresent) {
+  console.log('DATABASE_URL runtime check: PRESENT');
+  console.log(`DATABASE_URL length: ${dbUrl.length}`);
+} else {
+  console.log('DATABASE_URL runtime check: MISSING');
+}
+console.log('====================================');
+
 const config = getConfig();
 
 const start = async () => {
