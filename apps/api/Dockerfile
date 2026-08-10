@@ -12,7 +12,7 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages packages
 COPY prisma prisma
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 
