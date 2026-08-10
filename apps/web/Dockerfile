@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm@11.20.0 --activate
 
 COPY package.json ./
 
-RUN pnpm install
+RUN pnpm install --prod=false --ignore-scripts
 
 COPY . .
 
