@@ -58,6 +58,17 @@ let _config: AppConfig | null = null;
 export function getConfig(): AppConfig {
   if (_config) return _config;
 
+  const dbUrl = process.env.DATABASE_URL;
+  const dbUrlExists = 'DATABASE_URL' in process.env;
+  const isDbUrlNonEmpty = typeof dbUrl === 'string' && dbUrl.trim().length > 0;
+
+  console.log('🔍 CONFIG RUNTIME DIAGNOSTIC');
+  console.log(`DATABASE_URL key exists: ${dbUrlExists}`);
+  console.log(`DATABASE_URL non-empty: ${isDbUrlNonEmpty}`);
+  console.log(`DATABASE_URL length: ${isDbUrlNonEmpty ? dbUrl.length : 0}`);
+  console.log(`NODE_ENV: ${process.env.NODE_ENV ?? 'undefined'}`);
+  console.log(`Working Directory: ${process.cwd()}`);
+
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
