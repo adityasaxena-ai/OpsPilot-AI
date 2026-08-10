@@ -1,6 +1,6 @@
 FROM prom/prometheus:v2.51.0
 
-COPY apps/prometheus/prometheus.yml /etc/prometheus/prometheus.yml
+COPY prometheus.yml /etc/prometheus/prometheus.yml
 
 EXPOSE 9090
 
