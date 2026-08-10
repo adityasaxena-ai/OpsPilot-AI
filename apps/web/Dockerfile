@@ -12,7 +12,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-ARG VITE_API_URL
+ARG VITE_API_URL=https://opspilotapi-production.up.railway.app
 ENV VITE_API_URL=$VITE_API_URL
 
 RUN pnpm --filter @opspilot/web build
