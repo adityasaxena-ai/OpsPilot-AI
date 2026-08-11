@@ -9,31 +9,44 @@ export * from './mock-provider.js';
 export * from './replay-provider.js';
 export * from './service-mapper.js';
 
-let activeProvider: TelemetryProvider | null = null;
+export type ProviderMode = 'otel' | 'mock' | 'replay';
+
+let currentMode: ProviderMode = (process.env['TELEMETRY_PROVIDER'] as ProviderMode) ?? 'otel';
 const replayProvider = new ReplayTelemetryProvider();
 const mockProvider = new MockTelemetryProvider();
 const otelProvider = new OpenTelemetryProvider();
 
-export function getTelemetryProvider(): TelemetryProvider {
-  if (activeProvider) return activeProvider;
-
-  const mode = process.env['TELEMETRY_PROVIDER'] ?? 'otel';
-
+export function getTelemetryProviderByMode(mode: ProviderMode): TelemetryProvider {
   if (mode === 'replay') {
-    activeProvider = replayProvider;
-  } else if (mode === 'mock') {
-    activeProvider = mockProvider;
-  } else {
-    activeProvider = otelProvider;
+    replayProvider.ensureRecording();
+    return replayProvider;
   }
+  if (mode === 'mock') {
+    return mockProvider;
+  }
+  return otelProvider;
+}
 
-  return activeProvider;
+export function getTelemetryProvider(): TelemetryProvider {
+  return getTelemetryProviderByMode(currentMode);
+}
+
+export function getTelemetryProviderMode(): ProviderMode {
+  return currentMode;
+}
+
+export function setTelemetryProviderMode(mode: ProviderMode): TelemetryProvider {
+  currentMode = mode;
+  return getTelemetryProviderByMode(mode);
 }
 
 export function setTelemetryProvider(provider: TelemetryProvider): void {
-  activeProvider = provider;
+  if (provider.name === 'replay' || provider.name === 'mock' || provider.name === 'otel') {
+    currentMode = provider.name as ProviderMode;
+  }
 }
 
 export function getReplayProvider(): ReplayTelemetryProvider {
+  replayProvider.ensureRecording();
   return replayProvider;
 }

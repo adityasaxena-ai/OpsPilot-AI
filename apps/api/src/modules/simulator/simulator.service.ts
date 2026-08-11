@@ -180,7 +180,18 @@ async function runTick(): Promise<void> {
   // Fetch telemetry from active provider (OpenTelemetry, Mock, or Replay)
   let liveTelemetry: Record<string, import('@opspilot/telemetry').ServiceTelemetry> = {};
   try {
-    const { getTelemetryProvider, getReplayProvider } = await import('@opspilot/telemetry');
+    const { getTelemetryProvider, getReplayProvider, setTelemetryProviderMode } = await import('@opspilot/telemetry');
+    const { redis } = await import('../../lib/redis.js');
+
+    try {
+      const savedMode = await redis.get('opspilot:telemetry:mode');
+      if (savedMode === 'otel' || savedMode === 'mock' || savedMode === 'replay') {
+        setTelemetryProviderMode(savedMode as 'otel' | 'mock' | 'replay');
+      }
+    } catch {
+      // Ignore Redis error
+    }
+
     const provider = getTelemetryProvider();
     liveTelemetry = await provider.fetchTelemetry(serviceNames);
 
