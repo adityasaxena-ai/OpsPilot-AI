@@ -329,6 +329,17 @@ export function IncidentDetail() {
             </>
           )}
 
+          {status === 'VERIFYING' && (
+            <button
+              onClick={() => updateStatusMutation.mutate('RESOLVED')}
+              disabled={updateStatusMutation.isPending}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/40"
+            >
+              <CheckCircle size={14} />
+              {updateStatusMutation.isPending ? 'Resolving…' : 'Confirm Recovery & Resolve'}
+            </button>
+          )}
+
           {status === 'RESOLVED' && (
             <button
               onClick={() => updateStatusMutation.mutate('CLOSED')}
@@ -428,7 +439,9 @@ export function IncidentDetail() {
                   ? 'No action required. Incident is archived.'
                   : status === 'RESOLVED'
                   ? 'Review the AI Post Mortem and click "Close Incident" when ready.'
-                  : status === 'VERIFYING' || status === 'REMEDIATION_EXECUTED' || status === 'EXECUTING'
+                  : status === 'VERIFYING'
+                  ? 'Review recovery metrics below and click "Confirm Recovery & Resolve" when ready.'
+                  : status === 'REMEDIATION_EXECUTED' || status === 'EXECUTING'
                   ? 'OpsPilot is monitoring telemetry and health metrics to confirm baseline recovery.'
                   : status === 'REMEDIATION_APPROVED'
                   ? 'Click "Execute Remediation Plan" to run authorized actions on target environment.'
