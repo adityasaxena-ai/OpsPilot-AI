@@ -184,7 +184,7 @@ export function CommandCenter() {
   const simServices = (simData?.data as SimService[] | undefined) ?? [];
   const recentIncidents = (incidentsData?.data as Incident[] | undefined) ?? [];
   const telemetryStatus = telemetryData?.data;
-  const isReplay = telemetryStatus?.providerName === 'replay' || telemetryStatus?.isReplaying === true;
+  const isReplayActive = telemetryStatus?.providerName === 'replay' || telemetryStatus?.isReplaying === true;
 
   return (
     <div className="space-y-6 fade-in">
@@ -199,7 +199,7 @@ export function CommandCenter() {
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs" style={{ color: 'hsl(var(--text-tertiary))' }}>
-          <span className="pulse-dot" style={{ background: 'hsl(142 72% 45%)' }} />
+          <span className="pulse-dot" style={{ background: isReplayActive ? 'hsl(265 85% 65%)' : 'hsl(142 72% 45%)' }} />
           Live · refreshes every 10s
         </div>
       </div>
@@ -208,7 +208,7 @@ export function CommandCenter() {
       <div
         className="p-4 rounded-xl border flex items-center justify-between"
         style={{
-          background: telemetryStatus?.providerName === 'replay'
+          background: isReplayActive
             ? 'hsl(265 85% 65% / 0.1)'
             : telemetryStatus?.providerName === 'otel'
             ? telemetryStatus?.status === 'HEALTHY'
@@ -217,7 +217,7 @@ export function CommandCenter() {
               ? 'hsl(38 92% 50% / 0.1)'
               : 'hsl(0 85% 60% / 0.1)'
             : 'hsl(var(--bg-surface-2))',
-          borderColor: telemetryStatus?.providerName === 'replay'
+          borderColor: isReplayActive
             ? 'hsl(265 85% 65% / 0.3)'
             : telemetryStatus?.providerName === 'otel'
             ? telemetryStatus?.status === 'HEALTHY'
@@ -232,14 +232,14 @@ export function CommandCenter() {
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs"
             style={{
-              background: telemetryStatus?.providerName === 'replay'
+              background: isReplayActive
                 ? 'hsl(265 85% 65% / 0.2)'
                 : telemetryStatus?.status === 'HEALTHY'
                 ? 'hsl(142 72% 45% / 0.2)'
                 : telemetryStatus?.details?.configured === false
                 ? 'hsl(38 92% 50% / 0.2)'
                 : 'hsl(0 85% 60% / 0.2)',
-              color: telemetryStatus?.providerName === 'replay'
+              color: isReplayActive
                 ? 'hsl(265 85% 70%)'
                 : telemetryStatus?.status === 'HEALTHY'
                 ? 'hsl(142 72% 55%)'
@@ -248,7 +248,7 @@ export function CommandCenter() {
                 : 'hsl(0 85% 65%)',
             }}
           >
-            {telemetryStatus?.providerName?.toUpperCase() ?? 'OTEL'}
+            {isReplayActive ? 'REPLAY' : telemetryStatus?.providerName?.toUpperCase() ?? 'OTEL'}
           </div>
 
           <div>
@@ -259,14 +259,14 @@ export function CommandCenter() {
               <span
                 className="text-xs px-2 py-0.5 rounded-full font-medium"
                 style={{
-                  background: telemetryStatus?.providerName === 'replay'
+                  background: isReplayActive
                     ? 'hsl(265 85% 65% / 0.15)'
                     : telemetryStatus?.status === 'HEALTHY'
                     ? 'hsl(142 72% 45% / 0.15)'
                     : telemetryStatus?.details?.configured === false
                     ? 'hsl(38 92% 50% / 0.15)'
                     : 'hsl(0 85% 60% / 0.15)',
-                  color: telemetryStatus?.providerName === 'replay'
+                  color: isReplayActive
                     ? 'hsl(265 85% 70%)'
                     : telemetryStatus?.status === 'HEALTHY'
                     ? 'hsl(142 72% 55%)'
@@ -275,7 +275,7 @@ export function CommandCenter() {
                     : 'hsl(0 85% 65%)',
                 }}
               >
-                {telemetryStatus?.providerName === 'replay'
+                {isReplayActive
                   ? 'REPLAY MODE ACTIVE'
                   : telemetryStatus?.status === 'HEALTHY'
                   ? 'HEALTHY'
@@ -296,21 +296,21 @@ export function CommandCenter() {
             disabled={setProviderMutation.isPending}
             className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
             style={{
-              background: telemetryStatus?.providerName === 'otel'
+              background: !isReplayActive && telemetryStatus?.providerName === 'otel'
                 ? telemetryStatus?.status === 'HEALTHY'
                   ? 'hsl(142 72% 45% / 0.2)'
                   : telemetryStatus?.details?.configured === false
                   ? 'hsl(38 92% 50% / 0.2)'
                   : 'hsl(0 85% 60% / 0.2)'
                 : 'transparent',
-              borderColor: telemetryStatus?.providerName === 'otel'
+              borderColor: !isReplayActive && telemetryStatus?.providerName === 'otel'
                 ? telemetryStatus?.status === 'HEALTHY'
                   ? 'hsl(142 72% 45% / 0.4)'
                   : telemetryStatus?.details?.configured === false
                   ? 'hsl(38 92% 50% / 0.4)'
                   : 'hsl(0 85% 60% / 0.4)'
                 : 'hsl(var(--border))',
-              color: telemetryStatus?.providerName === 'otel'
+              color: !isReplayActive && telemetryStatus?.providerName === 'otel'
                 ? telemetryStatus?.status === 'HEALTHY'
                   ? 'hsl(142 72% 55%)'
                   : telemetryStatus?.details?.configured === false
@@ -327,9 +327,9 @@ export function CommandCenter() {
             disabled={setProviderMutation.isPending}
             className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
             style={{
-              background: telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 56% / 0.2)' : 'transparent',
-              borderColor: telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 56% / 0.4)' : 'hsl(var(--border))',
-              color: telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 60%)' : 'hsl(var(--text-secondary))',
+              background: !isReplayActive && telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 56% / 0.2)' : 'transparent',
+              borderColor: !isReplayActive && telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 56% / 0.4)' : 'hsl(var(--border))',
+              color: !isReplayActive && telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 60%)' : 'hsl(var(--text-secondary))',
             }}
           >
             Mock Standby
@@ -340,9 +340,9 @@ export function CommandCenter() {
             disabled={setProviderMutation.isPending}
             className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
             style={{
-              background: isReplay ? 'hsl(265 85% 65% / 0.2)' : 'transparent',
-              borderColor: isReplay ? 'hsl(265 85% 65% / 0.4)' : 'hsl(var(--border))',
-              color: isReplay ? 'hsl(265 85% 70%)' : 'hsl(var(--text-secondary))',
+              background: isReplayActive ? 'hsl(265 85% 65% / 0.2)' : 'transparent',
+              borderColor: isReplayActive ? 'hsl(265 85% 65% / 0.4)' : 'hsl(var(--border))',
+              color: isReplayActive ? 'hsl(265 85% 70%)' : 'hsl(var(--text-secondary))',
             }}
           >
             Replay Mode
