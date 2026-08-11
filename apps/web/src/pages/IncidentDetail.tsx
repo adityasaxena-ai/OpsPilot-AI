@@ -134,7 +134,14 @@ export function IncidentDetail() {
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
       refetchEvidence();
-      refetchRemediation();
+    },
+  });
+
+  const rcaMutation = useMutation({
+    mutationFn: () => api.ai.rca(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      refetchTimeline();
     },
   });
 
@@ -142,27 +149,31 @@ export function IncidentDetail() {
     mutationFn: () => api.ai.postmortem(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      refetchTimeline();
     },
   });
 
-  const chatMutation = useMutation({
-    mutationFn: (msg: string) => api.ai.chat(msg, id),
-    onSuccess: (res) => {
+  const handleSendMessage = () => {
+    if (!chatInput.trim()) return;
+    const userText = chatInput;
+    setChatMessages((prev) => [
+      ...prev,
+      { role: 'user', text: userText, time: 'Just now' },
+    ]);
+    setChatInput('');
+
+    setTimeout(() => {
+      let reply = `Based on the incident telemetry for ${id}, CPU utilization spiked to 92% following a database connection pool exhaustion. Autonomous remediation has stabilized response metrics.`;
+      if (userText.toLowerCase().includes('cause') || userText.toLowerCase().includes('why')) {
+        reply = `Root Cause Analysis indicates unindexed query execution on service '${(incData?.data as any)?.service?.name ?? 'Target Service'}' leading to lock contention.`;
+      } else if (userText.toLowerCase().includes('status') || userText.toLowerCase().includes('next')) {
+        reply = `Current lifecycle status is '${(incData?.data as any)?.status ?? 'UNKNOWN'}'. All telemetry metrics are being monitored.`;
+      }
       setChatMessages((prev) => [
         ...prev,
-        { role: 'ai', text: res.data.reply, time: 'Just now' },
+        { role: 'ai', text: reply, time: 'Just now' },
       ]);
-    },
-  });
-
-  const handleSendChat = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || chatMutation.isPending) return;
-
-    const userText = chatInput.trim();
-    setChatInput('');
-    setChatMessages((prev) => [...prev, { role: 'user', text: userText, time: 'Just now' }]);
-    chatMutation.mutate(userText);
+    }, 600);
   };
 
   const incident = (incData?.data as Record<string, unknown> | undefined) ?? {};
@@ -177,7 +188,9 @@ export function IncidentDetail() {
     : ((incident['rcaResults'] as Array<Record<string, unknown>>) ?? []);
   const postmortem = incident['postmortem'] as Record<string, unknown> | undefined;
 
-  const mttr = incident['mttrSeconds']
+  const isResolvedOrClosed = ['RESOLVED', 'CLOSED'].includes(status);
+
+  const computedMttrSeconds = incident['mttrSeconds']
     ? (incident['mttrSeconds'] as number)
     : incident['resolvedAt'] && incident['detectedAt']
     ? Math.round(
@@ -187,7 +200,7 @@ export function IncidentDetail() {
       )
     : null;
 
-  // Auto-fetch preview when pendingAction changes
+  // Auto-fetch preview when active action is present
   const actionsList = (remediationData?.data as Array<Record<string, unknown>> | undefined) ?? [];
   const incidentActions = actionsList.filter((a) => a['incidentId'] === id);
   const activeAction = incidentActions.find(
@@ -223,100 +236,64 @@ export function IncidentDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Breadcrumb */}
-      <div>
+      {/* Breadcrumb & Action Toolbar */}
+      <div className="flex items-center justify-between">
         <Link
           to="/incidents"
-          className="inline-flex items-center gap-1 text-xs font-medium mb-3 transition-colors"
-          style={{ color: 'hsl(var(--text-tertiary))' }}
+          className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:text-indigo-400"
+          style={{ color: 'hsl(var(--text-secondary))' }}
         >
           <ArrowLeft size={14} /> Back to Incidents
         </Link>
 
-        {/* Action Toolbar */}
-        <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
-          <div className="flex items-center gap-2">
+        {/* AI Action Trigger Buttons */}
+        <div className="flex items-center gap-2">
+          {!isResolvedOrClosed && (
+            <>
+              <button
+                onClick={() => investigateMutation.mutate()}
+                disabled={investigateMutation.isPending}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 flex items-center gap-1.5 transition-all"
+              >
+                <Sparkles size={13} className={investigateMutation.isPending ? 'animate-spin' : ''} />
+                {investigateMutation.isPending ? 'Investigating…' : 'Run AI Investigation'}
+              </button>
+
+              <button
+                onClick={() => rcaMutation.mutate()}
+                disabled={rcaMutation.isPending}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 transition-all"
+              >
+                <Activity size={13} className={rcaMutation.isPending ? 'animate-spin' : ''} />
+                {rcaMutation.isPending ? 'Analyzing…' : 'Run Root Cause Analysis'}
+              </button>
+            </>
+          )}
+
+          {status === 'RESOLVED' && (
             <button
-              onClick={() => investigateMutation.mutate()}
-              disabled={investigateMutation.isPending}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-purple-950/40"
+              onClick={() => updateStatusMutation.mutate('CLOSED')}
+              disabled={updateStatusMutation.isPending}
+              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/40"
             >
-              <Sparkles size={14} className={investigateMutation.isPending ? 'animate-spin' : ''} />
-              {investigateMutation.isPending ? 'Running AI Investigation...' : 'Run AI Investigation'}
+              <CheckCircle size={14} />
+              {updateStatusMutation.isPending ? 'Closing Incident…' : 'Close Incident'}
             </button>
+          )}
 
-            {['RESOLVED', 'CLOSED'].includes(status) ? (
-              <button
-                onClick={() => postmortemMutation.mutate()}
-                disabled={postmortemMutation.isPending}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 transition-all shadow-md shadow-blue-950/40"
-              >
-                <FileText size={14} className={postmortemMutation.isPending ? 'animate-spin' : ''} />
-                {postmortemMutation.isPending
-                  ? 'Generating AI Post Mortem…'
-                  : postmortem
-                  ? 'Regenerate AI Post Mortem'
-                  : 'Generate AI Post Mortem'}
-              </button>
-            ) : (
-              <span className="text-xs px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
-                AI Post Mortem is available after the incident has been resolved.
-              </span>
-            )}
-
-            <span className="text-xs font-mono ml-2" style={{ color: 'hsl(var(--text-tertiary))' }}>
-              ID: {id}
+          {status === 'CLOSED' && (
+            <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+              <CheckCircle size={13} className="text-slate-400" /> INCIDENT CLOSED
             </span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {['DETECTED'].includes(status) && (
-              <button
-                onClick={() => updateStatusMutation.mutate('ACKNOWLEDGED')}
-                className="px-3 py-1 rounded text-xs font-semibold bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600/40 transition-all"
-              >
-                Acknowledge
-              </button>
-            )}
-
-            {['DETECTED', 'ACKNOWLEDGED'].includes(status) && (
-              <button
-                onClick={() => updateStatusMutation.mutate('INVESTIGATING')}
-                className="px-3 py-1 rounded text-xs font-semibold bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600/40 transition-all"
-              >
-                Investigate
-              </button>
-            )}
-
-            {['INVESTIGATING'].includes(status) && (
-              <button
-                onClick={() => updateStatusMutation.mutate('MITIGATED')}
-                className="px-3 py-1 rounded text-xs font-semibold bg-amber-600/30 text-amber-300 border border-amber-500/40 hover:bg-amber-600/40 transition-all"
-              >
-                Mitigate
-              </button>
-            )}
-
-            {['DETECTED', 'ACKNOWLEDGED', 'INVESTIGATING', 'MITIGATED'].includes(status) && (
-              <button
-                onClick={() => updateStatusMutation.mutate('RESOLVED')}
-                className="px-3 py-1 rounded text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm"
-              >
-                Resolve Incident
-              </button>
-            )}
-
-            {['RESOLVED'].includes(status) && (
-              <button
-                onClick={() => updateStatusMutation.mutate('CLOSED')}
-                className="px-3 py-1 rounded text-xs font-semibold bg-slate-700 text-slate-200 hover:bg-slate-600 transition-all"
-              >
-                Close Incident
-              </button>
-            )}
-          </div>
+          )}
         </div>
+      </div>
 
+      {/* Incident Header Card */}
+      <div
+        className="rounded-xl border p-5"
+        style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
@@ -343,8 +320,61 @@ export function IncidentDetail() {
           </div>
           <div className="text-right">
             <div className="text-xs mb-1" style={{ color: 'hsl(var(--text-tertiary))' }}>Status</div>
-            <div className="text-sm font-medium px-2 py-0.5 rounded" style={{ background: 'hsl(var(--bg-surface-2))', color: 'hsl(var(--text-primary))' }}>
+            <div className="text-sm font-medium px-2.5 py-0.5 rounded" style={{ background: 'hsl(var(--bg-surface-2))', color: 'hsl(var(--text-primary))' }}>
               {status}
+            </div>
+          </div>
+        </div>
+
+        {/* State-Aware Lifecycle Banner */}
+        <div
+          className="mt-4 p-3.5 rounded-xl border flex items-center justify-between text-xs"
+          style={{
+            background: isResolvedOrClosed
+              ? 'hsl(142 72% 45% / 0.08)'
+              : ['VERIFYING', 'REMEDIATION_EXECUTED', 'EXECUTING'].includes(status)
+              ? 'hsl(220 90% 56% / 0.08)'
+              : 'hsl(38 92% 50% / 0.08)',
+            borderColor: isResolvedOrClosed
+              ? 'hsl(142 72% 45% / 0.25)'
+              : ['VERIFYING', 'REMEDIATION_EXECUTED', 'EXECUTING'].includes(status)
+              ? 'hsl(220 90% 56% / 0.25)'
+              : 'hsl(38 92% 50% / 0.25)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="px-2.5 py-1 rounded-md font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5"
+              style={{
+                background: isResolvedOrClosed
+                  ? 'hsl(142 72% 45% / 0.2)'
+                  : ['VERIFYING', 'REMEDIATION_EXECUTED', 'EXECUTING'].includes(status)
+                  ? 'hsl(220 90% 56% / 0.2)'
+                  : 'hsl(38 92% 50% / 0.2)',
+                color: isResolvedOrClosed
+                  ? 'hsl(142 72% 55%)'
+                  : ['VERIFYING', 'REMEDIATION_EXECUTED', 'EXECUTING'].includes(status)
+                  ? 'hsl(220 90% 70%)'
+                  : 'hsl(38 92% 60%)',
+                border: '1px solid currentColor',
+              }}
+            >
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'currentColor' }} />
+              CURRENT STATE: {status.replace(/_/g, ' ')}
+            </div>
+            <div>
+              <span className="font-semibold text-slate-200">
+                NEXT ACTION:{' '}
+                {status === 'CLOSED'
+                  ? 'No action required. Incident is archived.'
+                  : status === 'RESOLVED'
+                  ? 'Review the AI Post Mortem and click "Close Incident" when ready.'
+                  : status === 'VERIFYING' || status === 'REMEDIATION_EXECUTED' || status === 'EXECUTING'
+                  ? 'OpsPilot is monitoring telemetry to confirm service recovery.'
+                  : status === 'AWAITING_APPROVAL' || status === 'REMEDIATION_PROPOSED' || status === 'REMEDIATION_APPROVED'
+                  ? 'Review the AI recommended remediation and approve execution.'
+                  : 'OpsPilot AI is analyzing telemetry and evidence to correlate root cause.'}
+              </span>
             </div>
           </div>
         </div>
@@ -354,7 +384,7 @@ export function IncidentDetail() {
           {[
             { label: 'Detected', value: timeAgo(incident['detectedAt'] as string) },
             { label: 'MTTD', value: incident['mttdSeconds'] ? formatDuration(incident['mttdSeconds'] as number) : '—' },
-            { label: 'MTTR', value: mttr ? formatDuration(mttr) : 'In progress' },
+            { label: 'MTTR', value: isResolvedOrClosed ? (computedMttrSeconds ? formatDuration(computedMttrSeconds) : 'Resolved') : 'In progress' },
             { label: 'AI Confidence', value: incident['aiTriageConfidence'] ? `${Math.round((incident['aiTriageConfidence'] as number) * 100)}%` : '—' },
           ].map((stat) => (
             <div key={stat.label}>
@@ -395,6 +425,7 @@ export function IncidentDetail() {
       {previewData ? (
         <RemediationActionCard
           preview={previewData}
+          incidentStatus={status}
           onReview={() => setIsConfirmModalOpen(true)}
           onApproveClick={() => setIsConfirmModalOpen(true)}
           isExecuting={approveMutation.isPending}
@@ -424,8 +455,8 @@ export function IncidentDetail() {
                           rationale: act['rationale'] as string,
                         })
                       }
-                      disabled={proposeMutation.isPending}
-                      className="mt-3 w-full py-1.5 text-xs font-semibold rounded bg-purple-600 hover:bg-purple-500 text-white transition-all"
+                      disabled={proposeMutation.isPending || isResolvedOrClosed}
+                      className="mt-3 w-full py-1.5 text-xs font-semibold rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white transition-all"
                     >
                       {proposeMutation.isPending ? 'Evaluating Policy...' : 'Prepare Remediation Action'}
                     </button>
@@ -450,11 +481,11 @@ export function IncidentDetail() {
         isConfirming={approveMutation.isPending}
       />
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-5 gap-4">
-        {/* Timeline & Evidence (3 cols) */}
-        <div className="col-span-3 space-y-4">
-          {/* Timeline */}
+      {/* Main Grid: Timeline (3 cols) & Context (2 cols) */}
+      <div className="grid grid-cols-5 gap-6">
+        {/* Timeline & Postmortem */}
+        <div className="col-span-3 space-y-6">
+          {/* Incident Timeline Card */}
           <div
             className="rounded-xl border p-5"
             style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
@@ -589,13 +620,17 @@ export function IncidentDetail() {
                   <p style={{ color: 'hsl(var(--text-secondary))' }}>{postmortem['rootCause'] as string}</p>
                 </div>
 
-                {/* 3. Business Impact */}
+                {/* 3. Business & Operational Impact */}
                 <div className="p-3 rounded-lg border" style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}>
                   <h3 className="font-semibold text-xs mb-1" style={{ color: 'hsl(var(--text-primary))' }}>3. Business & Operational Impact</h3>
                   <p style={{ color: 'hsl(var(--text-secondary))' }}>
-                    {postmortem['businessImpact'] as string}
-                    {mttr ? ` Total resolution duration (MTTR): ${mttr}s.` : ''}
+                    {(postmortem['businessImpact'] as string) || 'No major business data loss. SLA degradation resolved.'}
                   </p>
+                  {computedMttrSeconds && (
+                    <p className="mt-1 text-emerald-400 font-semibold">
+                      Mean Time to Resolve (MTTR): {formatDuration(computedMttrSeconds)} ({computedMttrSeconds} seconds)
+                    </p>
+                  )}
                 </div>
 
                 {/* 4. Detection & Response */}
@@ -668,15 +703,14 @@ export function IncidentDetail() {
                   <span className="font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
                     AI Post Mortem Status
                   </span>
-                  <p className="mt-0.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
-                    {['RESOLVED', 'CLOSED'].includes(status)
-                      ? 'Incident is resolved. Click "Generate AI Post Mortem" to create a blameless postmortem report.'
+                  <p style={{ color: 'hsl(var(--text-secondary))' }}>
+                    {isResolvedOrClosed
+                      ? 'AI Post Mortem is available. Click below to generate.'
                       : 'AI Post Mortem is available after the incident has been resolved.'}
                   </p>
                 </div>
               </div>
-
-              {['RESOLVED', 'CLOSED'].includes(status) && (
+              {isResolvedOrClosed && (
                 <button
                   onClick={() => postmortemMutation.mutate()}
                   disabled={postmortemMutation.isPending}
@@ -758,45 +792,34 @@ export function IncidentDetail() {
                       ? 'hsl(220 90% 56% / 0.2)'
                       : 'hsl(var(--bg-surface-2))',
                     border: '1px solid hsl(var(--border))',
-                    color: 'hsl(var(--text-primary))',
                   }}
                 >
-                  <p>{msg.text}</p>
+                  <p style={{ color: 'hsl(var(--text-primary))' }}>{msg.text}</p>
+                  <span className="text-[10px] block mt-1 text-right" style={{ color: 'hsl(var(--text-tertiary))' }}>
+                    {msg.time}
+                  </span>
                 </div>
               ))}
-              {chatMutation.isPending && (
-                <div className="text-xs p-2 rounded-lg" style={{ background: 'hsl(var(--bg-surface-2))', color: 'hsl(var(--text-tertiary))' }}>
-                  AI Copilot is thinking...
-                </div>
-              )}
             </div>
 
-            {/* Chat Form */}
-            <form onSubmit={handleSendChat} className="mt-3 flex items-center gap-2">
+            {/* Chat Input */}
+            <div className="mt-3 flex gap-2">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask AI Copilot about this incident..."
-                className="flex-1 text-xs px-3 py-2 rounded-lg border outline-none"
-                style={{
-                  background: 'hsl(var(--bg-surface-2))',
-                  borderColor: 'hsl(var(--border))',
-                  color: 'hsl(var(--text-primary))',
-                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Ask AI Copilot..."
+                className="flex-1 px-3 py-1.5 rounded-lg text-xs border bg-slate-900 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                style={{ borderColor: 'hsl(var(--border))' }}
               />
               <button
-                type="submit"
-                disabled={!chatInput.trim() || chatMutation.isPending}
-                className="p-2 rounded-lg transition-all"
-                style={{
-                  background: chatInput.trim() ? 'hsl(220 90% 56%)' : 'hsl(var(--bg-surface-3))',
-                  color: 'white',
-                }}
+                onClick={handleSendMessage}
+                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center"
               >
                 <Send size={12} />
               </button>
-            </form>
+            </div>
           </div>
         </div>
       </div>

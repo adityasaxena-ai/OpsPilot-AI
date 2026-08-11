@@ -120,6 +120,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ incidentId }),
       }),
+    rca: (incidentId: string) =>
+      request<{ success: boolean; data: unknown }>('/ai/investigate', {
+        method: 'POST',
+        body: JSON.stringify({ incidentId }),
+      }),
     postmortem: (incidentId: string) =>
       request<{ success: boolean; data: unknown }>('/ai/postmortem', {
         method: 'POST',

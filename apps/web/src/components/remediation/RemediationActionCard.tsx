@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, ShieldCheck, AlertTriangle, Play, FileText, CheckCircle2, Clock } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, Play, FileText, CheckCircle2, Clock } from 'lucide-react';
 
 export interface ActionPreviewData {
   actionId: string;
@@ -20,6 +20,7 @@ export interface ActionPreviewData {
 
 interface Props {
   preview: ActionPreviewData;
+  incidentStatus?: string;
   onReview: () => void;
   onApproveClick: () => void;
   isExecuting?: boolean;
@@ -27,6 +28,7 @@ interface Props {
 
 export const RemediationActionCard: React.FC<Props> = ({
   preview,
+  incidentStatus = '',
   onReview,
   onApproveClick,
   isExecuting = false,
@@ -45,8 +47,10 @@ export const RemediationActionCard: React.FC<Props> = ({
     }
   };
 
-  const isCompleted = ['SUCCEEDED', 'COMPLETED', 'RESOLVED'].includes(preview.status);
-  const isInProgress = ['EXECUTING', 'VERIFYING'].includes(preview.status);
+  const isResolvedOrClosed = ['RESOLVED', 'CLOSED'].includes(incidentStatus);
+  const isCompleted = isResolvedOrClosed || ['SUCCEEDED', 'COMPLETED', 'RESOLVED', 'CLOSED'].includes(preview.status);
+  const isInProgress = ['EXECUTING', 'VERIFYING'].includes(preview.status) || ['EXECUTING', 'VERIFYING', 'REMEDIATION_EXECUTED'].includes(incidentStatus);
+  const isApproved = preview.status === 'APPROVED' || incidentStatus === 'REMEDIATION_APPROVED';
 
   return (
     <div className="bg-slate-900/90 border border-amber-500/40 rounded-xl p-5 shadow-lg shadow-amber-950/20 backdrop-blur-md transition-all hover:border-amber-500/60">
@@ -67,10 +71,27 @@ export const RemediationActionCard: React.FC<Props> = ({
           <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${getRiskBadgeColor(preview.riskLevel)}`}>
             Risk: {preview.riskLevel} ({preview.riskScore}/100)
           </span>
-          {preview.requiresApproval && !isCompleted && (
+          {preview.requiresApproval && !isCompleted && !isInProgress && !isApproved && (
             <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" />
               REQUIRES HUMAN APPROVAL
+            </span>
+          )}
+          {isApproved && !isCompleted && (
+            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
+              APPROVED — READY FOR EXECUTION
+            </span>
+          )}
+          {isInProgress && !isCompleted && (
+            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+              VERIFYING RECOVERY
+            </span>
+          )}
+          {isCompleted && (
+            <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" />
+              REMEDIATION VERIFIED
             </span>
           )}
         </div>
@@ -142,9 +163,9 @@ export const RemediationActionCard: React.FC<Props> = ({
           </button>
 
           {isCompleted ? (
-            <span className="px-4 py-1.5 text-xs font-medium rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+            <span className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4" />
-              Remediation Completed
+              {incidentStatus === 'CLOSED' ? 'Incident Closed' : 'Remediation Verified'}
             </span>
           ) : (
             <button

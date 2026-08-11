@@ -1,11 +1,21 @@
 export type IncidentState =
   | 'DETECTED'
   | 'ACKNOWLEDGED'
+  | 'TRIAGED'
+  | 'CORRELATED'
   | 'INVESTIGATING'
-  | 'MITIGATED'
+  | 'RCA_IDENTIFIED'
+  | 'REMEDIATION_PROPOSED'
+  | 'AWAITING_APPROVAL'
+  | 'REMEDIATION_APPROVED'
+  | 'REMEDIATION_EXECUTED'
+  | 'EXECUTING'
+  | 'VERIFYING'
   | 'RESOLVED'
   | 'CLOSED'
-  | 'FAILED';
+  | 'FAILED'
+  | 'ESCALATED'
+  | 'LEARNING';
 
 export interface TransitionContext {
   currentStatus: IncidentState;
@@ -26,18 +36,28 @@ export interface TransitionResult {
 }
 
 const ALLOWED_TRANSITIONS: Record<IncidentState, IncidentState[]> = {
-  DETECTED: ['ACKNOWLEDGED', 'INVESTIGATING', 'RESOLVED', 'CLOSED'],
-  ACKNOWLEDGED: ['INVESTIGATING', 'MITIGATED', 'RESOLVED', 'CLOSED'],
-  INVESTIGATING: ['MITIGATED', 'RESOLVED', 'CLOSED', 'FAILED'],
-  MITIGATED: ['RESOLVED', 'CLOSED', 'INVESTIGATING'],
+  DETECTED: ['ACKNOWLEDGED', 'TRIAGED', 'CORRELATED', 'INVESTIGATING', 'RESOLVED', 'CLOSED'],
+  ACKNOWLEDGED: ['INVESTIGATING', 'RCA_IDENTIFIED', 'RESOLVED', 'CLOSED'],
+  TRIAGED: ['INVESTIGATING', 'RCA_IDENTIFIED', 'RESOLVED', 'CLOSED'],
+  CORRELATED: ['INVESTIGATING', 'RCA_IDENTIFIED', 'RESOLVED', 'CLOSED'],
+  INVESTIGATING: ['RCA_IDENTIFIED', 'REMEDIATION_PROPOSED', 'AWAITING_APPROVAL', 'RESOLVED', 'CLOSED', 'FAILED'],
+  RCA_IDENTIFIED: ['REMEDIATION_PROPOSED', 'AWAITING_APPROVAL', 'REMEDIATION_APPROVED', 'EXECUTING', 'RESOLVED', 'CLOSED'],
+  REMEDIATION_PROPOSED: ['AWAITING_APPROVAL', 'REMEDIATION_APPROVED', 'EXECUTING', 'RESOLVED', 'CLOSED'],
+  AWAITING_APPROVAL: ['REMEDIATION_APPROVED', 'REMEDIATION_EXECUTED', 'EXECUTING', 'VERIFYING', 'RESOLVED', 'CLOSED', 'FAILED'],
+  REMEDIATION_APPROVED: ['REMEDIATION_EXECUTED', 'EXECUTING', 'VERIFYING', 'RESOLVED', 'CLOSED', 'FAILED'],
+  REMEDIATION_EXECUTED: ['VERIFYING', 'RESOLVED', 'CLOSED', 'FAILED'],
+  EXECUTING: ['REMEDIATION_EXECUTED', 'VERIFYING', 'RESOLVED', 'CLOSED', 'FAILED'],
+  VERIFYING: ['RESOLVED', 'FAILED', 'INVESTIGATING', 'CLOSED'],
   RESOLVED: ['CLOSED', 'INVESTIGATING'],
-  CLOSED: ['INVESTIGATING'],
+  CLOSED: [],
   FAILED: ['INVESTIGATING', 'RESOLVED', 'CLOSED'],
+  ESCALATED: ['INVESTIGATING', 'RESOLVED', 'CLOSED'],
+  LEARNING: ['RESOLVED', 'CLOSED'],
 };
 
 export class LifecycleManager {
   validateTransition(context: TransitionContext): TransitionResult {
-    const { currentStatus, targetStatus, detectedAt, triagedAt } = context;
+    const { currentStatus, targetStatus, detectedAt, triagedAt, resolvedAt } = context;
 
     const allowed = ALLOWED_TRANSITIONS[currentStatus]?.includes(targetStatus) ?? false;
     if (!allowed) {
@@ -59,16 +79,19 @@ export class LifecycleManager {
     // MTTD: Time from creation to DETECTED (typically instantaneous or <10s)
     mttdSeconds = Math.max(1, Math.round((nowMs - startMs) / 1000));
 
-    // MTTA: Time from DETECTED to ACKNOWLEDGED
+    // MTTA: Time from DETECTED to ACKNOWLEDGED / INVESTIGATING
     if (targetStatus === 'ACKNOWLEDGED' || targetStatus === 'INVESTIGATING') {
       mttaSeconds = Math.max(1, Math.round((nowMs - startMs) / 1000));
     } else if (triagedAt) {
       mttaSeconds = Math.max(1, Math.round((triagedAt.getTime() - startMs) / 1000));
     }
 
-    // MTTR: Time from DETECTED to RESOLVED
-    if (targetStatus === 'RESOLVED' || targetStatus === 'CLOSED') {
+    // MTTR: Time from DETECTED to RESOLVED (preserve on CLOSED)
+    if (targetStatus === 'RESOLVED') {
       mttrSeconds = Math.max(1, Math.round((nowMs - startMs) / 1000));
+    } else if (targetStatus === 'CLOSED') {
+      const resolvedTime = resolvedAt ?? now;
+      mttrSeconds = Math.max(1, Math.round((resolvedTime.getTime() - startMs) / 1000));
     }
 
     return {
