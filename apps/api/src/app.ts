@@ -36,6 +36,17 @@ export async function buildApp() {
           },
   });
 
+  // ── Custom JSON content type parser (handles empty body gracefully) ──
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    try {
+      const str = typeof body === 'string' ? body : body ? body.toString('utf8') : '';
+      const json = JSON.parse(str.trim() || '{}');
+      done(null, json);
+    } catch (err) {
+      done(err as Error, undefined);
+    }
+  });
+
   // ── Security plugins ──────────────────────────────────────────────────
   await app.register(helmet, { global: true });
   await app.register(cors, {
