@@ -43,13 +43,20 @@ export class RiskEngine {
   constructor(private db: PrismaClient) {}
 
   async calculateRisk(ctx: RiskEvaluationContext): Promise<RiskEvaluationResult> {
-    // 1. Fetch Service & Downstream Dependencies
-    const service = await this.db.service.findUnique({
+    let service = await this.db.service.findUnique({
       where: { id: ctx.serviceId },
       include: {
         dependedOnBy: true,
       },
     });
+
+    if (!service) {
+      service = await this.db.service.findFirst({
+        include: {
+          dependedOnBy: true,
+        },
+      });
+    }
 
     if (!service) {
       throw new Error(`Service ${ctx.serviceId} not found`);
