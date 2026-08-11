@@ -76,10 +76,7 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
     const status = await replay.getStatus();
     return {
       success: true,
-      data: {
-        message: 'Telemetry Replay Mode activated',
-        status,
-      },
+      data: status,
     };
   });
 };

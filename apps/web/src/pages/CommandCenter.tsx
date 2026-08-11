@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Activity, Bell, Clock, Zap, Server, TrendingUp, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
@@ -137,6 +137,8 @@ function ServiceHealthRow({ sim }: { sim: SimService }) {
 }
 
 export function CommandCenter() {
+  const queryClient = useQueryClient();
+
   const { data: overviewData, isLoading: overviewLoading } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn: () => api.analytics.overview(),
@@ -155,16 +157,34 @@ export function CommandCenter() {
     refetchInterval: 15_000,
   });
 
-  const { data: telemetryData, refetch: refetchTelemetry } = useQuery({
+  const { data: telemetryData } = useQuery({
     queryKey: ['telemetry', 'status'],
     queryFn: () => api.telemetry.status(),
     refetchInterval: 10_000,
+  });
+
+  const setProviderMutation = useMutation({
+    mutationFn: async (provider: 'otel' | 'mock' | 'replay') => {
+      if (provider === 'replay') {
+        const res = await api.telemetry.startReplay();
+        return res;
+      }
+      return api.telemetry.setProvider(provider);
+    },
+    onSuccess: (data) => {
+      if (data?.data) {
+        queryClient.setQueryData(['telemetry', 'status'], { success: true, data: data.data });
+      }
+      queryClient.invalidateQueries({ queryKey: ['telemetry'] });
+      queryClient.invalidateQueries({ queryKey: ['simulator'] });
+    },
   });
 
   const overview = overviewData?.data as AnalyticsOverview | undefined;
   const simServices = (simData?.data as SimService[] | undefined) ?? [];
   const recentIncidents = (incidentsData?.data as Incident[] | undefined) ?? [];
   const telemetryStatus = telemetryData?.data;
+  const isReplay = telemetryStatus?.providerName === 'replay' || telemetryStatus?.isReplaying === true;
 
   return (
     <div className="space-y-6 fade-in">
@@ -272,8 +292,9 @@ export function CommandCenter() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => api.telemetry.setProvider('otel').then(() => refetchTelemetry())}
-            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80"
+            onClick={() => setProviderMutation.mutate('otel')}
+            disabled={setProviderMutation.isPending}
+            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
             style={{
               background: telemetryStatus?.providerName === 'otel'
                 ? telemetryStatus?.status === 'HEALTHY'
@@ -302,8 +323,9 @@ export function CommandCenter() {
           </button>
 
           <button
-            onClick={() => api.telemetry.setProvider('mock').then(() => refetchTelemetry())}
-            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80"
+            onClick={() => setProviderMutation.mutate('mock')}
+            disabled={setProviderMutation.isPending}
+            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
             style={{
               background: telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 56% / 0.2)' : 'transparent',
               borderColor: telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 56% / 0.4)' : 'hsl(var(--border))',
@@ -314,12 +336,13 @@ export function CommandCenter() {
           </button>
 
           <button
-            onClick={() => api.telemetry.startReplay().then(() => refetchTelemetry())}
-            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80"
+            onClick={() => setProviderMutation.mutate('replay')}
+            disabled={setProviderMutation.isPending}
+            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
             style={{
-              background: telemetryStatus?.providerName === 'replay' ? 'hsl(265 85% 65% / 0.2)' : 'transparent',
-              borderColor: telemetryStatus?.providerName === 'replay' ? 'hsl(265 85% 65% / 0.4)' : 'hsl(var(--border))',
-              color: telemetryStatus?.providerName === 'replay' ? 'hsl(265 85% 70%)' : 'hsl(var(--text-secondary))',
+              background: isReplay ? 'hsl(265 85% 65% / 0.2)' : 'transparent',
+              borderColor: isReplay ? 'hsl(265 85% 65% / 0.4)' : 'hsl(var(--border))',
+              color: isReplay ? 'hsl(265 85% 70%)' : 'hsl(var(--text-secondary))',
             }}
           >
             Replay Mode
