@@ -41,9 +41,24 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
 
   // POST /api/v1/ai/postmortem — Generate AI Postmortem for resolved incident
   app.post<{ Body: { incidentId: string } }>('/postmortem', async (request, reply) => {
-    const { incidentId } = request.body;
+    const { incidentId } = request.body ?? {};
     if (!incidentId) {
       return reply.status(400).send({ success: false, error: { code: 'MISSING_PARAM', message: 'incidentId required' } });
+    }
+
+    const incident = await db.incident.findUnique({ where: { id: incidentId } });
+    if (!incident) {
+      return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Incident not found' } });
+    }
+
+    if (String(incident.status) !== 'RESOLVED' && String(incident.status) !== 'CLOSED') {
+      return reply.status(400).send({
+        success: false,
+        error: {
+          code: 'INCIDENT_NOT_RESOLVED',
+          message: 'AI Post Mortem is available after the incident has been resolved.',
+        },
+      });
     }
 
     try {
