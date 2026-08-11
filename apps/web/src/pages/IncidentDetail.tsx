@@ -526,7 +526,7 @@ export function IncidentDetail() {
                       onClick={() =>
                         proposeMutation.mutate({
                           actionType: act['actionType'] as string,
-                          serviceId: (act['serviceId'] as string) ?? (incident['serviceId'] as string),
+                          serviceId: (incident['serviceId'] as string) ?? (act['serviceId'] as string),
                           rationale: act['rationale'] as string,
                         })
                       }
