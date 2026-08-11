@@ -2,9 +2,18 @@ const rawApiUrl = import.meta.env.VITE_API_URL || '';
 const API_BASE = (rawApiUrl ? rawApiUrl.replace(/\/$/, '') : '') + '/api/v1';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const isMutation = options?.method === 'POST' || options?.method === 'PUT' || options?.method === 'PATCH';
+  const hasBody = options?.body !== undefined;
+
+  const headers: Record<string, string> = { ...options?.headers as Record<string, string> };
+  if (hasBody || isMutation) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
+    headers,
+    body: hasBody ? options.body : isMutation ? '{}' : undefined,
   });
 
   if (!res.ok) {
@@ -137,6 +146,7 @@ export const api = {
     approve: (id: string) =>
       request<{ success: boolean; data: unknown }>(`/remediation/${id}/approve`, {
         method: 'POST',
+        body: JSON.stringify({}),
       }),
     reject: (id: string, reason?: string) =>
       request<{ success: boolean; data: unknown }>(`/remediation/${id}/reject`, {
@@ -146,12 +156,13 @@ export const api = {
     execute: (id: string) =>
       request<{ success: boolean; data: unknown }>(`/remediation/${id}/execute`, {
         method: 'POST',
+        body: JSON.stringify({}),
       }),
   },
 
   integrations: {
     get: () => request<{ success: boolean; data: Record<string, { configured: boolean; webhookUrl?: string; domain?: string }> }>('/integrations'),
-    test: () => request<{ success: boolean; data: { message: string; dispatchedTo: string[] } }>('/integrations/test', { method: 'POST' }),
+    test: () => request<{ success: boolean; data: { message: string; dispatchedTo: string[] } }>('/integrations/test', { method: 'POST', body: JSON.stringify({}) }),
   },
 
   rules: {
@@ -198,10 +209,12 @@ export const api = {
     stopRecord: () =>
       request<{ success: boolean; data: unknown }>('/telemetry/record/stop', {
         method: 'POST',
+        body: JSON.stringify({}),
       }),
     startReplay: () =>
       request<{ success: boolean; data: unknown }>('/telemetry/replay/start', {
         method: 'POST',
+        body: JSON.stringify({}),
       }),
   },
 };
