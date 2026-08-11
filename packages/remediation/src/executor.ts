@@ -98,6 +98,11 @@ export class RemediationExecutor {
       };
     }
 
+    const targetService = input.serviceId
+      ? await this.db.service.findUnique({ where: { id: input.serviceId } })
+      : null;
+    const targetServiceId = targetService ? targetService.id : incident.serviceId;
+
     // 4. Dynamic import of RiskEngine & PolicyEngine to prevent circular workspace build deps
     const { RiskEngine } = await import('@opspilot/risk-engine');
     const { PolicyEngine } = await import('@opspilot/policy-engine');
@@ -108,7 +113,7 @@ export class RemediationExecutor {
     // 5. Calculate Risk
     const riskRes = await riskEngine.calculateRisk({
       actionType: input.actionType,
-      serviceId: input.serviceId,
+      serviceId: targetServiceId,
       environment: incident.environment,
     });
 
