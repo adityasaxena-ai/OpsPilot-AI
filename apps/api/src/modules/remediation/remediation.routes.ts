@@ -52,18 +52,26 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
   }>('/propose', async (request, reply) => {
     const { incidentId, actionType, serviceId, rationale } = request.body;
 
-    if (!incidentId || !actionType || !serviceId) {
+    if (!incidentId || !actionType) {
       return reply.status(400).send({
         success: false,
-        error: { code: 'MISSING_PARAM', message: 'incidentId, actionType, serviceId required' },
+        error: { code: 'MISSING_PARAM', message: 'incidentId, actionType required' },
       });
     }
+
+    const incident = await db.incident.findUnique({ where: { id: incidentId } });
+    if (!incident) {
+      return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Incident not found' } });
+    }
+
+    const targetService = serviceId ? await db.service.findUnique({ where: { id: serviceId } }) : null;
+    const validServiceId = targetService ? targetService.id : incident.serviceId;
 
     try {
       const result = await executor.proposeAction({
         incidentId,
         actionType,
-        serviceId,
+        serviceId: validServiceId,
         rationale: rationale ?? 'Remediation proposed by OpsPilot AI',
       });
 
