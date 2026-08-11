@@ -81,7 +81,7 @@ export function IncidentDetail() {
   ]);
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<ActionPreviewData | null>(null);
+  const [localPreviewData, setLocalPreviewData] = useState<ActionPreviewData | null>(null);
 
   const { data: incData, isLoading } = useQuery({
     queryKey: ['incident', id],
@@ -118,7 +118,7 @@ export function IncidentDetail() {
       refetchRemediation();
       if (res?.data?.actionId) {
         api.remediation.preview(res.data.actionId).then((pRes) => {
-          if (pRes?.data) setPreviewData(pRes.data);
+          if (pRes?.data) setLocalPreviewData(pRes.data);
         });
       }
     },
@@ -221,13 +221,13 @@ export function IncidentDetail() {
     (a) => a['status'] === 'AWAITING_APPROVAL' || a['status'] === 'APPROVED' || a['status'] === 'EXECUTING' || a['status'] === 'SUCCEEDED'
   );
 
-  useEffect(() => {
-    if (activeAction?.['id']) {
-      api.remediation.preview(activeAction['id'] as string).then((res) => {
-        if (res?.data) setPreviewData(res.data);
-      }).catch(() => {});
-    }
-  }, [activeAction?.['id']]);
+  const previewQuery = useQuery({
+    queryKey: ['remediation-preview', activeAction?.['id']],
+    queryFn: () => api.remediation.preview(activeAction!['id'] as string),
+    enabled: !!activeAction?.['id'],
+  });
+
+  const previewData = previewQuery.data?.data ?? localPreviewData;
 
   if (isLoading) {
     return (
