@@ -21,19 +21,25 @@ export interface ProposeActionResult {
 
 export interface ActionPreviewResult {
   actionId: string;
+  incidentId: string;
   actionType: string;
   actionName: string;
   serviceName: string;
   serviceId: string;
   environment: string;
   why: string;
+  preconditions: string[];
   whatWillHappen: string[];
   expectedImpact: string;
+  expectedDuration: string;
+  rollbackStrategy: string;
+  verificationCriteria: string;
   riskScore: number;
   riskLevel: string;
   requiresApproval: boolean;
   status: string;
   approvalId?: string;
+  createdAt: string;
 }
 
 export class RemediationExecutor {
@@ -71,7 +77,7 @@ export class RemediationExecutor {
       throw err;
     }
 
-    // 3. Check for existing active remediation on this incident (Idempotency / Concurrency protection)
+    // 3. Check for existing active remediation on this incident
     const existingActiveAction = await this.db.remediationAction.findFirst({
       where: {
         incidentId: input.incidentId,
@@ -150,7 +156,7 @@ export class RemediationExecutor {
           status: 'PENDING',
           aiRecommendation: input.rationale,
           riskSummary: riskRes.explanation,
-          expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15-min expiry
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000),
         },
       });
       approvalId = approval.id;
@@ -200,7 +206,7 @@ export class RemediationExecutor {
       throw err;
     }
 
-    // 1. Incident Lifecycle Guard: Reject execution if incident is RESOLVED or CLOSED
+    // 1. Incident Lifecycle Guard
     if (['RESOLVED', 'CLOSED'].includes(action.incident.status)) {
       const err = new Error(
         `[InvalidState] Incident ${action.incident.id} is already ${action.incident.status}. Remediation execution is disabled.`
@@ -209,15 +215,14 @@ export class RemediationExecutor {
       throw err;
     }
 
-    // 2. Concurrency & Double-Click Guard:
+    // 2. Concurrency Guard
     if (['EXECUTING', 'SUCCEEDED'].includes(action.status)) {
       const err = new Error(`[ConcurrencyConflict] Action ${actionId} is already in state ${action.status}`);
       (err as unknown as { statusCode: number }).statusCode = 409;
       throw err;
     }
 
-    // 3. CRITICAL HUMAN APPROVAL GATE GUARD:
-    // Only 'APPROVED' actions may enter execution!
+    // 3. HUMAN APPROVAL GATE GUARD
     if (action.status !== 'APPROVED') {
       const err = new Error(
         `[Forbidden] Action ${actionId} is in state ${action.status} and cannot be executed without explicit human approval.`
@@ -236,7 +241,7 @@ export class RemediationExecutor {
     const tool = this.registry.get(action.actionType);
     if (!tool) throw new Error(`Unknown action tool: ${action.actionType}`);
 
-    // Update status to EXECUTING
+    // Update status to EXECUTING & REMEDIATION_EXECUTED
     await this.db.remediationAction.update({
       where: { id: actionId },
       data: { status: 'EXECUTING', executedAt: new Date() },
@@ -244,7 +249,7 @@ export class RemediationExecutor {
 
     await this.db.incident.update({
       where: { id: action.incidentId },
-      data: { status: 'EXECUTING' },
+      data: { status: 'REMEDIATION_EXECUTED' },
     });
 
     await this.db.incidentEvent.create({
@@ -252,14 +257,13 @@ export class RemediationExecutor {
         incidentId: action.incidentId,
         eventType: 'REMEDIATION_EXECUTION_STARTED',
         actorType: approvedById ? 'USER' : 'AI',
-        description: `Started execution of remediation action: ${action.actionType}`,
-        metadata: { actionId },
+        description: `Started execution of remediation action: ${action.actionType} [EXECUTION MODE: SIMULATED]`,
+        metadata: { actionId, executionMode: 'SIMULATED' },
       },
     });
 
     // Execute tool
     const execRes = await tool.execute(action.incident.serviceId, {}, this.db);
-
     const finalStatus = execRes.success ? 'SUCCEEDED' : 'FAILED';
 
     // Update action outcome
@@ -272,14 +276,12 @@ export class RemediationExecutor {
       },
     });
 
-    // Lookup valid user ID if approvedById passed
     let validUserId: string | null = null;
     if (approvedById) {
       const user = await this.db.user.findFirst();
       if (user) validUserId = user.id;
     }
 
-    // Audit log entry
     await this.db.auditLog.create({
       data: {
         action: `REMEDIATION_EXECUTED_${action.actionType}`,
@@ -290,7 +292,7 @@ export class RemediationExecutor {
         incidentId: action.incidentId,
         riskScore: action.riskScore,
         result: execRes.success ? 'SUCCESS' : 'FAILURE',
-        metadata: { actionId, log: execRes.executionLog },
+        metadata: { actionId, log: execRes.executionLog, executionMode: 'SIMULATED' },
       },
     });
 
@@ -299,12 +301,12 @@ export class RemediationExecutor {
         incidentId: action.incidentId,
         eventType: execRes.success ? 'REMEDIATION_EXECUTION_COMPLETED' : 'REMEDIATION_EXECUTION_FAILED',
         actorType: approvedById ? 'USER' : 'AI',
-        description: execRes.message,
+        description: `${execRes.message} [EXECUTION MODE: SIMULATED]`,
         metadata: { actionId, success: execRes.success },
       },
     });
 
-    // If successful, trigger post-remediation metric verification!
+    // Transition to VERIFYING
     if (execRes.success) {
       await this.db.incident.update({
         where: { id: action.incidentId },
@@ -317,6 +319,7 @@ export class RemediationExecutor {
       success: execRes.success,
       message: execRes.message,
       executionLog: execRes.executionLog,
+      executionMode: 'SIMULATED',
     };
   }
 
@@ -337,87 +340,135 @@ export class RemediationExecutor {
     const env = action.incident.environment;
 
     let actionName = action.actionType.replace('_', ' ');
+    let preconditions: string[] = [];
     let whatWillHappen: string[] = [];
     let expectedImpact = 'Minor transient impact possible during execution.';
+    let expectedDuration = '~1–3 minutes';
+    let rollbackStrategy = 'Revert to previous stable operational state if verification fails.';
+    let verificationCriteria = 'CPU < 85%, Error Rate < 1.00%, Latency P99 < 1000ms, Service Health = HEALTHY.';
 
     switch (action.actionType) {
       case 'ROLLBACK_DEPLOYMENT':
         actionName = `Rollback ${serviceName}`;
+        preconditions = [
+          `1. Confirm active deployment contains elevated memory or unindexed query regressions.`,
+          `2. Verify target previous stable build exists in deployment registry.`,
+          `3. Confirm database migration backward compatibility.`,
+        ];
         whatWillHappen = [
-          `Roll back ${serviceName} to the previous stable deployment build.`,
-          `Replace active container pods/instances with the previous version.`,
-          `Monitor CPU, latency, and error rate during rollout.`,
-          `Verify service health and confirm incident resolution.`,
+          `1. Initiate graceful container pod termination across ${serviceName} worker pool.`,
+          `2. Roll back container image tag to previous stable release build.`,
+          `3. Monitor readiness probes, startup logs, and thread pool initialization.`,
+          `4. Re-route incoming traffic to healthy rolled-back instance pool.`,
         ];
         expectedImpact = 'Temporary brief latency blip during pod replacement (~1–2 mins).';
+        expectedDuration = '~1–3 minutes';
+        rollbackStrategy = 'Re-deploy original build image tag if rollback fails readiness checks.';
+        verificationCriteria = 'CPU < 85%, Error Rate < 1.00%, Latency P99 < 1000ms, Service Health = HEALTHY.';
         break;
 
       case 'RESTART_SERVICE':
         actionName = `Restart ${serviceName}`;
+        preconditions = [
+          `1. Confirm target service process is active and receiving requests.`,
+          `2. Check active request queue depth and database pool connections.`,
+          `3. Verify standby failover replica is online.`,
+        ];
         whatWillHappen = [
-          `Perform a graceful rolling restart of all ${serviceName} instances.`,
-          `Drain active connection pools cleanly before process termination.`,
-          `Monitor process startup, thread pools, and readiness probes.`,
-          `Verify service health after all instances reach ready state.`,
+          `1. Perform a graceful rolling restart of all ${serviceName} instances.`,
+          `2. Drain active connection pools cleanly before process termination.`,
+          `3. Monitor process startup, thread pools, and readiness probes.`,
+          `4. Verify service health after all instances reach ready state.`,
         ];
         expectedImpact = 'Possible brief connection retries for active in-flight requests.';
+        expectedDuration = '~1–2 minutes';
+        rollbackStrategy = 'Keep remaining pods active if restarted pod fails readiness probe.';
+        verificationCriteria = 'CPU < 80%, Error Rate < 0.50%, Latency P99 < 500ms, Service Health = HEALTHY.';
         break;
 
       case 'SCALE_SERVICE':
         actionName = `Scale Up ${serviceName}`;
+        preconditions = [
+          `1. Verify cluster worker node resource capacity for instance expansion.`,
+          `2. Check load balancer auto-target registration settings.`,
+        ];
         whatWillHappen = [
-          `Increase worker node / replica count for ${serviceName} by +50%.`,
-          `Distribute incoming traffic across expanded instance pool.`,
-          `Relieve CPU and thread contention.`,
-          `Verify load balancing and metric stabilization.`,
+          `1. Increase worker node / replica count for ${serviceName} by +50%.`,
+          `2. Distribute incoming traffic across expanded instance pool.`,
+          `3. Relieve CPU and thread contention.`,
+          `4. Verify load balancing and metric stabilization.`,
         ];
         expectedImpact = 'No downtime. Minor temporary cloud resource usage increase.';
+        expectedDuration = '~2–3 minutes';
+        rollbackStrategy = 'Scale back to original replica count if load balancer registration fails.';
+        verificationCriteria = 'CPU < 70%, Error Rate < 0.20%, Latency P99 < 300ms, Service Health = HEALTHY.';
         break;
 
       case 'CLEAR_CACHE':
         actionName = `Flush Cache for ${serviceName}`;
+        preconditions = [
+          `1. Check Redis cluster memory usage and connection count.`,
+          `2. Confirm primary database read replica capacity for cache re-hydration.`,
+        ];
         whatWillHappen = [
-          `Flush stale key-value entries in Redis cache for ${serviceName}.`,
-          `Force cache re-hydration from backend database.`,
-          `Monitor database query latency and cache hit ratios post-flush.`,
+          `1. Flush stale key-value entries in Redis cache namespace for ${serviceName}.`,
+          `2. Trigger warm-up queries for high-frequency cache keys.`,
+          `3. Monitor database query latency and cache hit ratios post-flush.`,
         ];
         expectedImpact = 'Brief transient increase in database read queries during cache warmup.';
+        expectedDuration = '~30–60 seconds';
+        rollbackStrategy = 'Re-populate critical cache keys from snapshot if database load exceeds 90%.';
+        verificationCriteria = 'Cache Hit Ratio > 90%, Error Rate < 0.10%, Database Load < 75%.';
         break;
 
       case 'RETRY_BATCH':
         actionName = `Retry Failed Batches for ${serviceName}`;
+        preconditions = [
+          `1. Confirm dead-letter queue contains failed processing items.`,
+          `2. Verify database write lock availability.`,
+        ];
         whatWillHappen = [
-          `Re-queue dead-lettered / failed processing batch jobs for ${serviceName}.`,
-          `Process failed items with exponential backoff safety controls.`,
-          `Verify batch queue drain rates and error rates.`,
+          `1. Re-queue dead-lettered / failed processing batch jobs for ${serviceName}.`,
+          `2. Process failed items with exponential backoff safety controls.`,
+          `3. Verify batch queue drain rates and error rates.`,
         ];
         expectedImpact = 'Increased background job processing load (~2–5 mins).';
+        expectedDuration = '~2–5 minutes';
+        rollbackStrategy = 'Pause batch re-queue if error rate exceeds 5%.';
+        verificationCriteria = 'Queue Depth = 0, Error Rate < 0.50%, Processing Success > 99%.';
         break;
 
       default:
         actionName = `Execute ${action.actionType} on ${serviceName}`;
+        preconditions = [`1. Check target service operational state.`];
         whatWillHappen = [
-          `Execute targeted remediation action on ${serviceName}.`,
-          `Monitor operational health metrics post-execution.`,
+          `1. Execute targeted remediation action on ${serviceName}.`,
+          `2. Monitor operational health metrics post-execution.`,
         ];
         break;
     }
 
     return {
       actionId: action.id,
+      incidentId: action.incidentId,
       actionType: action.actionType,
       actionName,
       serviceName,
       serviceId: action.incident.serviceId,
       environment: env,
       why: action.approval?.aiRecommendation || 'Recent metrics and logs indicate operational degradation requiring intervention.',
+      preconditions,
       whatWillHappen,
       expectedImpact,
+      expectedDuration,
+      rollbackStrategy,
+      verificationCriteria,
       riskScore: action.riskScore,
       riskLevel: action.riskLevel,
       requiresApproval: action.status === 'AWAITING_APPROVAL' || env === 'production',
       status: action.status,
       ...(action.approval?.id ? { approvalId: action.approval.id } : {}),
+      createdAt: action.createdAt.toISOString(),
     };
   }
 }
