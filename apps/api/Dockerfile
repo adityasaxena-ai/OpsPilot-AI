@@ -18,7 +18,7 @@ RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 
 COPY . .
 
-RUN pnpm exec tsc -b --force apps/api/tsconfig.json
+RUN pnpm exec tsc -b --force packages/types packages/config packages/telemetry packages/policy-engine packages/risk-engine packages/ai packages/agents packages/detection packages/remediation apps/api
 
 EXPOSE 3001
 
