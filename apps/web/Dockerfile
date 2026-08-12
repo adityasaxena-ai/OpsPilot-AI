@@ -4,17 +4,22 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@11.20.0 --activate
 
-COPY package.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages packages
 
-RUN pnpm install --prod=false --ignore-scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
+
+RUN pnpm exec tsc -b --force packages/types packages/telemetry apps/web
 
 ARG VITE_API_URL=https://opspilotapi-production.up.railway.app
 ENV VITE_API_URL=$VITE_API_URL
 
-RUN pnpm build
+RUN pnpm --filter @opspilot/web build
 
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+CMD ["pnpm", "--filter", "@opspilot/web", "start"]
