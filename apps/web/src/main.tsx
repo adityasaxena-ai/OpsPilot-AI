@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { CommandCenter } from './pages/CommandCenter';
+import { EstateTopology } from './pages/EstateTopology';
 import { IncidentList } from './pages/IncidentList';
 import { IncidentDetail } from './pages/IncidentDetail';
 import { AlertFeed } from './pages/AlertFeed';
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <CommandCenter /> },
+      { path: 'estate', element: <EstateTopology /> },
       { path: 'incidents', element: <IncidentList /> },
       { path: 'incidents/:id', element: <IncidentDetail /> },
       { path: 'alerts', element: <AlertFeed /> },

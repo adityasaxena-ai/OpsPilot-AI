@@ -55,6 +55,19 @@ body {
   overflow-x: hidden;
 }
 
+@keyframes flowDash {
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-flow-dash {
+  animation: flowDash 2s linear infinite;
+}
+
 code, pre, kbd { font-family: var(--font-mono); }
 
 /* ─── Scrollbar ─────────────────────────────────────────────────────────── */

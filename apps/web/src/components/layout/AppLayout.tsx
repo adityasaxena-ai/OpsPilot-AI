@@ -11,11 +11,13 @@ import {
   Sliders,
   Cpu,
   Activity,
+  Network,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/', label: 'Command Center', icon: LayoutDashboard, exact: true },
+  { to: '/estate', label: 'Estate Topology', icon: Network },
   { to: '/incidents', label: 'Incidents', icon: AlertTriangle },
   { to: '/alerts', label: 'Alerts', icon: Bell },
   { to: '/rules', label: 'Threshold Rules', icon: Sliders },

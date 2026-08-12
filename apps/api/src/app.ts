@@ -17,6 +17,7 @@ import { remediationRoutes } from './modules/remediation/remediation.routes.js';
 import { integrationRoutes } from './modules/integrations/integrations.routes.js';
 import { telemetryRoutes } from './modules/telemetry/telemetry.routes.js';
 import { rulesRoutes } from './modules/rules/rules.routes.js';
+import { topologyRoutes } from './modules/topology/topology.routes.js';
 import { db } from './lib/db.js';
 import { redis } from './lib/redis.js';
 import { startSimulatorTick, stopSimulatorTick } from './modules/simulator/simulator.service.js';
@@ -105,6 +106,7 @@ export async function buildApp() {
   await app.register(integrationRoutes, { prefix: '/api/v1/integrations' });
   await app.register(telemetryRoutes, { prefix: '/api/v1/telemetry' });
   await app.register(rulesRoutes, { prefix: '/api/v1/rules' });
+  await app.register(topologyRoutes, { prefix: '/api/v1/topology' });
 
   // ── Global error handler ───────────────────────────────────────────────
   app.setErrorHandler((error, _request, reply) => {

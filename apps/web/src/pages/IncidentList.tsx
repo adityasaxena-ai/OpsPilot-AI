@@ -15,7 +15,25 @@ interface Incident {
   _count: { alertGroups: number };
 }
 
-const STATUS_OPTIONS = ['', 'DETECTED', 'TRIAGED', 'CORRELATED', 'INVESTIGATING', 'RESOLVED'];
+const STATUS_OPTIONS = [
+  '',
+  'DETECTED',
+  'TRIAGED',
+  'CORRELATED',
+  'INVESTIGATING',
+  'RCA_IDENTIFIED',
+  'REMEDIATION_PROPOSED',
+  'AWAITING_APPROVAL',
+  'REMEDIATION_APPROVED',
+  'REMEDIATION_EXECUTED',
+  'EXECUTING',
+  'VERIFYING',
+  'RESOLVED',
+  'CLOSED',
+  'FAILED',
+  'ESCALATED',
+  'LEARNING',
+];
 const SEVERITY_OPTIONS = ['', 'P1', 'P2', 'P3', 'P4', 'P5'];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -26,10 +44,15 @@ const STATUS_COLORS: Record<string, string> = {
   RCA_IDENTIFIED: 'hsl(200 80% 57%)',
   REMEDIATION_PROPOSED: 'hsl(160 60% 55%)',
   AWAITING_APPROVAL: 'hsl(38 92% 50%)',
+  REMEDIATION_APPROVED: 'hsl(142 72% 45%)',
+  REMEDIATION_EXECUTED: 'hsl(220 90% 60%)',
   EXECUTING: 'hsl(220 90% 60%)',
   VERIFYING: 'hsl(200 80% 57%)',
   RESOLVED: 'hsl(142 72% 45%)',
+  CLOSED: 'hsl(215 20% 50%)',
   FAILED: 'hsl(0 85% 55%)',
+  ESCALATED: 'hsl(0 90% 60%)',
+  LEARNING: 'hsl(280 75% 60%)',
 };
 
 export function IncidentList() {

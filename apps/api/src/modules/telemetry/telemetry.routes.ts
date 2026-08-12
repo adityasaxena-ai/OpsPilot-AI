@@ -51,6 +51,31 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: status };
   });
 
+  // POST /api/v1/telemetry/demo/override — Set dynamic metric override for live demo verification
+  app.post<{ Body: { serviceName: string; rps?: number; errorRate?: number; latencyP99?: number } }>(
+    '/demo/override',
+    async (request) => {
+      const { globalOtelEmitter } = await import('@opspilot/telemetry');
+      const { serviceName, rps, errorRate, latencyP99 } = request.body ?? {};
+      const overrideObj: { rps?: number; errorRate?: number; latencyP99?: number } = {};
+      if (typeof rps === 'number') overrideObj.rps = rps;
+      if (typeof errorRate === 'number') overrideObj.errorRate = errorRate;
+      if (typeof latencyP99 === 'number') overrideObj.latencyP99 = latencyP99;
+
+      globalOtelEmitter.setOverride(serviceName, overrideObj);
+      await globalOtelEmitter.emitMetrics();
+
+      return {
+        success: true,
+        data: {
+          message: `Updated live OTel metrics override for ${serviceName}`,
+          serviceName,
+          override: { rps, errorRate, latencyP99 },
+        },
+      };
+    },
+  );
+
   // POST /api/v1/telemetry/record/start — Start recording live telemetry frames
   app.post<{ Body: { title?: string } }>('/record/start', async (request) => {
     const { title } = request.body ?? {};

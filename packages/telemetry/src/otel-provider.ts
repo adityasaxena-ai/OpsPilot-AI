@@ -17,9 +17,10 @@ export class OpenTelemetryProvider implements TelemetryProvider {
   constructor(config?: OtelProviderConfig) {
     const explicitUrl = config?.prometheusUrl ?? process.env['OTEL_PROMETHEUS_URL'];
     const isProd =
-      process.env.NODE_ENV === 'production' ||
-      process.env.RAILWAY_ENVIRONMENT === 'production' ||
-      Boolean(process.env.RAILWAY_PROJECT_ID);
+      (process.env.NODE_ENV === 'production' ||
+        process.env.RAILWAY_ENVIRONMENT === 'production' ||
+        Boolean(process.env.RAILWAY_PROJECT_ID)) &&
+      !explicitUrl;
 
     if (explicitUrl && explicitUrl.trim().length > 0) {
       this.prometheusUrl = explicitUrl.trim();

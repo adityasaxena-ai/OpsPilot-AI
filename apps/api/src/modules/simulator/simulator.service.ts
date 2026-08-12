@@ -198,7 +198,7 @@ async function runTick(): Promise<void> {
     // Record frame if recording mode is active
     getReplayProvider().recordFrame(liveTelemetry);
   } catch (err) {
-    console.warn('[Simulator] Telemetry fetch warning (falling back to standby baseline):', err);
+    console.warn('[Simulator] Telemetry fetch warning (SIMULATED FALLBACK ACTIVE):', err);
   }
 
   for (const sim of simServices) {

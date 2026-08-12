@@ -8,6 +8,8 @@ export * from './otel-provider.js';
 export * from './mock-provider.js';
 export * from './replay-provider.js';
 export * from './service-mapper.js';
+export * from './sdk.js';
+export * from './estate-topology.js';
 
 export type ProviderMode = 'otel' | 'mock' | 'replay';
 

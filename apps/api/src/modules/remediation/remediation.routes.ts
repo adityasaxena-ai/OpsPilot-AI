@@ -131,6 +131,11 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
       data: { status: 'APPROVED', respondedAt: new Date() },
     });
 
+    await db.incident.update({
+      where: { id: action.incidentId },
+      data: { status: 'REMEDIATION_APPROVED' },
+    });
+
     await db.incidentEvent.create({
       data: {
         incidentId: action.incidentId,
@@ -143,7 +148,7 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
 
     try {
       // Execute post approval
-      const operatorId = process.env.NODE_ENV === 'production' ? request.headers['x-operator-id'] as string : 'dev-user-admin';
+      const operatorId = (request.headers['x-operator-id'] as string) || (process.env.NODE_ENV !== 'production' ? 'dev-user-admin' : undefined);
       const execRes = await executor.executeAction(actionId, operatorId);
 
       // Run recovery verification

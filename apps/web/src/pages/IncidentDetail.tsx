@@ -329,7 +329,7 @@ export function IncidentDetail() {
             </>
           )}
 
-          {status === 'VERIFYING' && (
+          {(status === 'VERIFYING' || status === 'REMEDIATION_EXECUTED' || status === 'EXECUTING' || status === 'REMEDIATION_APPROVED') && (
             <button
               onClick={() => updateStatusMutation.mutate('RESOLVED')}
               disabled={updateStatusMutation.isPending}

@@ -151,6 +151,7 @@ export const api = {
     approve: (id: string) =>
       request<{ success: boolean; data: unknown }>(`/remediation/${id}/approve`, {
         method: 'POST',
+        headers: { 'x-operator-id': 'dev-user-admin' },
         body: JSON.stringify({}),
       }),
     reject: (id: string, reason?: string) =>
@@ -221,5 +222,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({}),
       }),
+  },
+  topology: {
+    getTopology: () =>
+      request<{ success: boolean; data: import('@opspilot/types').EstateTopologyResponse }>('/topology'),
+    getComponentDetail: (id: string) =>
+      request<{ success: boolean; data: import('@opspilot/types').ComponentDetail }>(`/topology/components/${id}`),
   },
 };
