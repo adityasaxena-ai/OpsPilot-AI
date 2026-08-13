@@ -78,13 +78,21 @@ export const topologyRoutes: FastifyPluginAsync = async (app) => {
 
     let activeIncidents: any[] = [];
     try {
-      activeIncidents = await db.incident.findMany({
+      const rawIncidents = await db.incident.findMany({
         where: {
           status: {
             notIn: ['CLOSED', 'RESOLVED'],
           },
         },
+        include: {
+          service: true,
+        },
       });
+
+      activeIncidents = rawIncidents.map((inc) => ({
+        ...inc,
+        serviceName: inc.service?.name ?? inc.serviceId,
+      }));
     } catch {
       // Ignore
     }

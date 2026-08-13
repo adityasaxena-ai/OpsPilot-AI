@@ -131,11 +131,22 @@ export class CanonicalEstateTopology {
     const node = topology.nodes.find((n) => n.id === componentId || n.id === componentId.toLowerCase());
     if (!node) return null;
 
-    const incidents = activeIncidents.filter(
-      (inc) =>
-        inc.serviceName?.toLowerCase().includes(node.id) ||
-        inc.serviceName?.toLowerCase() === node.name.toLowerCase(),
-    );
+    const targetId = node.id.toLowerCase();
+    const targetClean = targetId.replace(/-/g, ' ');
+
+    const incidents = activeIncidents.filter((inc) => {
+      const incServiceId = (inc.serviceId ?? inc.service?.id ?? '').toLowerCase();
+      const incSlug = (inc.service?.slug ?? '').toLowerCase();
+      const incName = (inc.serviceName ?? inc.service?.name ?? '').toLowerCase();
+
+      return (
+        incServiceId === targetId ||
+        incSlug === targetId ||
+        incName === node.name.toLowerCase() ||
+        incName === targetClean ||
+        (incName.length > 0 && incName.includes(targetClean))
+      );
+    });
 
     const upstreamEdges = topology.edges.filter((e) => e.target === node.id);
     const downstreamEdges = topology.edges.filter((e) => e.source === node.id);

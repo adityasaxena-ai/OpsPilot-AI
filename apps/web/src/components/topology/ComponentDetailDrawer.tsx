@@ -51,10 +51,51 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
     refetchInterval: 5000,
   });
 
+  const { data: incidentsListData } = useQuery({
+    queryKey: ['incidents', 'list', 'drawer'],
+    queryFn: () => api.incidents.list({ limit: '50' }),
+    enabled: Boolean(componentId),
+    refetchInterval: 10_000,
+  });
+
   if (!componentId) return null;
 
   const detail: ComponentDetail | undefined = detailData ?? undefined;
   const node = detail?.node;
+
+  const allIncidents = (incidentsListData?.data as any[] | undefined) ?? [];
+  const targetId = componentId.toLowerCase();
+  const targetClean = targetId.replace(/-/g, ' ');
+  const componentName = (topologyNode?.name ?? node?.name ?? '').toLowerCase();
+
+  // Strict Matching Priority Order:
+  // 1. serviceId / service.id === componentId
+  // 2. service.slug === componentId
+  // 3. exact service.name === componentName or targetClean
+  const matchingIncident = allIncidents.find((inc) => {
+    const incServiceId = (inc.serviceId ?? inc.service?.id ?? '').toLowerCase();
+    const incSlug = (inc.service?.slug ?? '').toLowerCase();
+    const incName = (inc.service?.name ?? '').toLowerCase();
+
+    if (incServiceId === targetId || incSlug === targetId) return true;
+    if (incName.length > 0 && (incName === componentName || incName === targetClean)) return true;
+    return false;
+  });
+
+  const detailIncident = detail?.activeIncidents?.find((inc: any) => {
+    const incServiceId = (inc.serviceId ?? inc.service?.id ?? '').toLowerCase();
+    const incSlug = (inc.service?.slug ?? '').toLowerCase();
+    const incName = (inc.serviceName ?? inc.service?.name ?? '').toLowerCase();
+    return (
+      incServiceId === targetId ||
+      incSlug === targetId ||
+      incName === componentName ||
+      incName === targetClean
+    );
+  });
+
+  // Effective incident MUST strictly belong to this component (NO generic fallbacks)
+  const effectiveIncident = detailIncident ?? matchingIncident ?? null;
   
   // Single Source of Truth: Topology node health overrides backend component detail health
   const health = topologyNode?.health ?? node?.health ?? 'GREEN';
@@ -281,18 +322,34 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
           </div>
 
           {/* Active Incidents & Investigation CTA */}
-          {(health === 'RED' || (detail?.activeIncidents && detail.activeIncidents.length > 0)) && (
+          {(health === 'RED' || effectiveIncident || (detail?.activeIncidents && detail.activeIncidents.length > 0)) && (
             <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2.5">
               <h3 className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Flame className="w-4 h-4 text-rose-400 animate-bounce" /> Active Incident Link
                 </span>
                 <span className="px-2 py-0.5 rounded bg-rose-500/30 text-rose-200 border border-rose-500/50 font-mono text-[10px]">
-                  {detail?.activeIncidents?.[0]?.severity ?? 'CRITICAL'}
+                  {effectiveIncident?.severity ?? detail?.activeIncidents?.[0]?.severity ?? 'CRITICAL'}
                 </span>
               </h3>
 
-              {detail?.activeIncidents && detail.activeIncidents.length > 0 ? (
+              {effectiveIncident ? (
+                <div className="p-3 rounded-lg bg-slate-900/90 border border-rose-500/30 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white font-mono">{effectiveIncident.incidentNumber ?? effectiveIncident.id}</span>
+                    <span className="px-2 py-0.5 rounded bg-rose-500 text-white font-bold text-[10px]">
+                      {effectiveIncident.severity ?? 'P1'}
+                    </span>
+                  </div>
+                  <p className="text-slate-200 font-medium">{effectiveIncident.title}</p>
+                  <button
+                    onClick={() => navigate(`/incidents/${effectiveIncident.id}`)}
+                    className="w-full py-1.5 px-3 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-rose-600/30"
+                  >
+                    <Search className="w-3.5 h-3.5" /> INVESTIGATE INCIDENT & VIEW RCA
+                  </button>
+                </div>
+              ) : detail?.activeIncidents && detail.activeIncidents.length > 0 ? (
                 detail.activeIncidents.map((inc: any) => (
                   <div key={inc.id} className="p-3 rounded-lg bg-slate-900/90 border border-rose-500/30 text-xs space-y-2">
                     <div className="flex items-center justify-between">
