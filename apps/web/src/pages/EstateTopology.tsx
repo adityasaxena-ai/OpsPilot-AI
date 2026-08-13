@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { CommandCenterControlHeader } from '@/components/topology/CommandCenterControlHeader';
@@ -8,10 +9,18 @@ import { LiveEstateActivitySection } from '@/components/topology/LiveEstateActiv
 import { EstateTopologyResponse, EstateChaosScenario, BlastRadiusInfo } from '@opspilot/types';
 
 export function EstateTopology() {
+  const [searchParams] = useSearchParams();
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [filter, setFilter] = useState<'ALL' | 'GREEN' | 'AMBER' | 'RED'>('ALL');
-  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(searchParams.get('selected'));
   const [activeScenario, setActiveScenario] = useState<EstateChaosScenario | null>(null);
+
+  useEffect(() => {
+    const sel = searchParams.get('selected');
+    if (sel) {
+      setSelectedComponentId(sel);
+    }
+  }, [searchParams]);
 
   const { data: topologyData, isLoading } = useQuery({
     queryKey: ['topology'],

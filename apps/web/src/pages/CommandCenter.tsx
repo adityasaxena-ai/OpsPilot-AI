@@ -42,16 +42,18 @@ function MetricCard({
   icon: Icon,
   color,
   sub,
+  to,
 }: {
   label: string;
   value: string | number;
   icon: React.ElementType;
   color: string;
   sub?: string;
+  to?: string;
 }) {
-  return (
+  const content = (
     <div
-      className="rounded-xl p-4 border fade-in"
+      className={`rounded-xl p-4 border fade-in ${to ? 'cursor-pointer hover:border-slate-500 transition-all hover:opacity-90' : ''}`}
       style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
     >
       <div className="flex items-center justify-between mb-3">
@@ -68,14 +70,17 @@ function MetricCard({
       {sub && <div className="text-xs mt-1" style={{ color: 'hsl(var(--text-tertiary))' }}>{sub}</div>}
     </div>
   );
+
+  return to ? <Link to={to} className="block">{content}</Link> : content;
 }
 
 function ServiceHealthRow({ sim }: { sim: SimService }) {
   const healthColor = sim.isHealthy ? 'hsl(142 72% 45%)' : sim.failureScenario ? 'hsl(0 85% 60%)' : 'hsl(38 92% 50%)';
 
   return (
-    <div
-      className="flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors hover:opacity-90"
+    <Link
+      to={`/estate?selected=${sim.service.slug}`}
+      className="flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors hover:opacity-90 block"
       style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}
     >
       <div className="flex items-center gap-2 w-36 flex-none">
@@ -132,7 +137,7 @@ function ServiceHealthRow({ sim }: { sim: SimService }) {
           {sim.failureScenario.replace(/_/g, ' ')}
         </span>
       )}
-    </div>
+    </Link>
   );
 }
 
@@ -358,12 +363,14 @@ export function CommandCenter() {
           icon={AlertTriangle}
           color="hsl(0 85% 65%)"
           sub={`${overview?.resolvedToday ?? 0} resolved today`}
+          to="/incidents"
         />
         <MetricCard
           label="Alerts Today"
           value={overviewLoading ? '—' : (overview?.alertsToday ?? 0)}
           icon={Bell}
           color="hsl(25 95% 60%)"
+          to="/incidents"
         />
         <MetricCard
           label="MTTR"
@@ -371,6 +378,7 @@ export function CommandCenter() {
           icon={Clock}
           color="hsl(200 80% 57%)"
           sub="Mean time to resolve"
+          to="/analytics"
         />
         <MetricCard
           label="AI Triage Rate"
@@ -378,6 +386,7 @@ export function CommandCenter() {
           icon={Zap}
           color="hsl(265 85% 65%)"
           sub="Incidents AI-triaged"
+          to="/analytics"
         />
       </div>
 
@@ -389,6 +398,7 @@ export function CommandCenter() {
           icon={Activity}
           color="hsl(48 95% 58%)"
           sub="Mean time to detect"
+          to="/analytics"
         />
         <MetricCard
           label="MTTA"
@@ -396,6 +406,7 @@ export function CommandCenter() {
           icon={TrendingUp}
           color="hsl(160 60% 55%)"
           sub="Mean time to acknowledge"
+          to="/analytics"
         />
         <MetricCard
           label="SLO Compliance"

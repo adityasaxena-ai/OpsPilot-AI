@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Activity, AlertTriangle, CheckCircle, XCircle, Sparkles, Send, RefreshCw, FileText } from 'lucide-react';
+import { ArrowLeft, Activity, AlertTriangle, CheckCircle, XCircle, Sparkles, Send, RefreshCw, FileText, ExternalLink } from 'lucide-react';
 import { api } from '@/lib/api';
 import { severityColor, timeAgo, formatDuration } from '@/lib/utils';
 import { RemediationActionCard, type ActionPreviewData } from '@/components/remediation/RemediationActionCard';
@@ -377,9 +377,19 @@ export function IncidentDetail() {
               >
                 {severity}
               </span>
-              <span className="text-xs" style={{ color: 'hsl(var(--text-tertiary))' }}>
-                {svc?.name}
-              </span>
+              {svc?.slug ? (
+                <Link
+                  to={`/estate?selected=${svc.slug}`}
+                  className="text-xs font-medium hover:underline transition-all hover:opacity-80 flex items-center gap-1"
+                  style={{ color: 'hsl(220 90% 65%)' }}
+                >
+                  {svc.name} <ExternalLink size={11} />
+                </Link>
+              ) : (
+                <span className="text-xs" style={{ color: 'hsl(var(--text-tertiary))' }}>
+                  {svc?.name}
+                </span>
+              )}
             </div>
             <h1 className="text-lg font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
               {incident['title'] as string}

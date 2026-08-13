@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, ChevronRight, Filter } from 'lucide-react';
 import { api } from '@/lib/api';
 import { severityColor, timeAgo } from '@/lib/utils';
@@ -56,6 +56,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function IncidentList() {
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('');
   const [severityFilter, setSeverityFilter] = useState('');
 
@@ -165,7 +166,15 @@ export function IncidentList() {
               : incidents.map((inc, i) => (
                 <tr
                   key={inc.id}
-                  className="hover:opacity-80 transition-opacity"
+                  onClick={() => navigate(`/incidents/${inc.id}`)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/incidents/${inc.id}`);
+                    }
+                  }}
+                  className="cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-1 focus:ring-blue-500"
                   style={{
                     background: i % 2 === 0 ? 'hsl(var(--bg-surface))' : 'hsl(var(--bg-surface-2))',
                     borderTop: '1px solid hsl(var(--border))',
