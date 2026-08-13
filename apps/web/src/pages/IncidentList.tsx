@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronRight, Filter } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Filter, Search } from 'lucide-react';
 import { api } from '@/lib/api';
 import { severityColor, timeAgo } from '@/lib/utils';
 
@@ -59,6 +59,7 @@ export function IncidentList() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('');
   const [severityFilter, setSeverityFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['incidents', { status: statusFilter, severity: severityFilter }],
@@ -71,8 +72,19 @@ export function IncidentList() {
     refetchInterval: 15_000,
   });
 
-  const incidents = (data?.data as Incident[] | undefined) ?? [];
+  const rawIncidents = (data?.data as Incident[] | undefined) ?? [];
   const total = (data?.meta as { total?: number } | undefined)?.total ?? 0;
+
+  const incidents = rawIncidents.filter((inc) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      inc.title.toLowerCase().includes(q) ||
+      inc.service?.name?.toLowerCase().includes(q) ||
+      inc.id.toLowerCase().includes(q) ||
+      inc.severity.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-4 fade-in">
@@ -86,8 +98,26 @@ export function IncidentList() {
           </p>
         </div>
 
-        {/* Filters */}
+        {/* Search & Filters */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Instant Search Input */}
+          <div className="relative flex-1 sm:w-48">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'hsl(var(--text-tertiary))' }} />
+            <input
+              type="text"
+              placeholder="Search incidents…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="text-xs pl-8 pr-3 py-1.5 rounded-lg border outline-none w-full focus:ring-1 focus:ring-indigo-500"
+              style={{
+                background: 'hsl(var(--bg-surface))',
+                borderColor: 'hsl(var(--border))',
+                color: 'hsl(var(--text-primary))',
+              }}
+              aria-label="Search incidents by title, service, or ID"
+            />
+          </div>
+
           <Filter size={14} style={{ color: 'hsl(var(--text-tertiary))' }} />
           <select
             value={statusFilter}
@@ -98,6 +128,7 @@ export function IncidentList() {
               borderColor: 'hsl(var(--border))',
               color: 'hsl(var(--text-secondary))',
             }}
+            aria-label="Filter by Incident Status"
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>{s || 'All Statuses'}</option>
@@ -112,6 +143,7 @@ export function IncidentList() {
               borderColor: 'hsl(var(--border))',
               color: 'hsl(var(--text-secondary))',
             }}
+            aria-label="Filter by Incident Severity"
           >
             {SEVERITY_OPTIONS.map((s) => (
               <option key={s} value={s}>{s || 'All Severities'}</option>

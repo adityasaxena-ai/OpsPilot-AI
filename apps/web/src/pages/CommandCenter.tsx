@@ -366,6 +366,70 @@ export function CommandCenter() {
         />
       </div>
 
+      {/* Operational Incident Severity Distribution Strip */}
+      <div
+        className="rounded-xl p-3 border flex flex-wrap items-center justify-between gap-3 text-xs"
+        style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
+      >
+        <span className="font-semibold uppercase tracking-wider text-[11px]" style={{ color: 'hsl(var(--text-tertiary))' }}>
+          Active Severity Breakdown
+        </span>
+        <div className="flex flex-wrap items-center gap-2 font-mono">
+          <Link
+            to="/incidents?severity=P1_CRITICAL"
+            className="px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-opacity hover:opacity-80"
+            style={{
+              background: 'hsl(0 85% 60% / 0.15)',
+              borderColor: 'hsl(0 85% 60% / 0.3)',
+              color: 'hsl(0 85% 70%)',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            <span>P1 Critical:</span>
+            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P1_CRITICAL').length}</span>
+          </Link>
+          <Link
+            to="/incidents?severity=P2_HIGH"
+            className="px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-opacity hover:opacity-80"
+            style={{
+              background: 'hsl(25 95% 60% / 0.15)',
+              borderColor: 'hsl(25 95% 60% / 0.3)',
+              color: 'hsl(25 95% 65%)',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-orange-500" />
+            <span>P2 High:</span>
+            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P2_HIGH').length}</span>
+          </Link>
+          <Link
+            to="/incidents?severity=P3_MEDIUM"
+            className="px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-opacity hover:opacity-80"
+            style={{
+              background: 'hsl(48 95% 58% / 0.15)',
+              borderColor: 'hsl(48 95% 58% / 0.3)',
+              color: 'hsl(48 95% 65%)',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span>P3 Medium:</span>
+            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P3_MEDIUM').length}</span>
+          </Link>
+          <Link
+            to="/incidents?severity=P4_LOW"
+            className="px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-opacity hover:opacity-80"
+            style={{
+              background: 'hsl(142 72% 45% / 0.15)',
+              borderColor: 'hsl(142 72% 45% / 0.3)',
+              color: 'hsl(142 72% 55%)',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>P4 Low:</span>
+            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P4_LOW').length}</span>
+          </Link>
+        </div>
+      </div>
+
       {/* Second row metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard

@@ -96,7 +96,17 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
 
   // Effective incident MUST strictly belong to this component (NO generic fallbacks)
   const effectiveIncident = detailIncident ?? matchingIncident ?? null;
-  
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   // Single Source of Truth: Topology node health overrides backend component detail health
   const health = topologyNode?.health ?? node?.health ?? 'GREEN';
 
@@ -110,13 +120,24 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
   const memoryPercent = topologyNode?.metrics.memoryPercent ?? node?.metrics.memoryPercent ?? 40;
 
   return (
-    <div
-      className="fixed inset-y-0 right-0 w-full sm:w-[500px] z-50 shadow-2xl border-l backdrop-blur-xl flex flex-col transition-all animate-in slide-in-from-right duration-300"
-      style={{
-        background: 'hsl(var(--bg-surface-1) / 0.96)',
-        borderColor: 'hsl(var(--border))',
-      }}
-    >
+    <>
+      {/* Mobile Backdrop Overlay */}
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm sm:hidden z-40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Component Details: ${node?.name ?? componentId}`}
+        className="fixed inset-y-0 right-0 w-full sm:w-[500px] z-50 shadow-2xl border-l backdrop-blur-xl flex flex-col transition-all animate-in slide-in-from-right duration-300"
+        style={{
+          background: 'hsl(var(--bg-surface-1) / 0.96)',
+          borderColor: 'hsl(var(--border))',
+        }}
+      >
       {/* Drawer Header */}
       <div className="p-4 border-b flex items-center justify-between bg-slate-900/80 border-slate-800">
         <div className="flex items-center gap-3">
@@ -429,5 +450,6 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
         </div>
       )}
     </div>
+    </>
   );
 };
