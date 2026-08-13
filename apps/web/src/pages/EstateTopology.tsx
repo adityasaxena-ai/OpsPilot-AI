@@ -223,6 +223,8 @@ export function EstateTopology() {
       {/* Component Detail Drill-down Side Drawer */}
       <ComponentDetailDrawer
         componentId={selectedComponentId}
+        topologyNode={topology?.nodes.find((n) => n.id === selectedComponentId)}
+        activeScenario={activeScenario}
         onClose={() => setSelectedComponentId(null)}
         onSelectComponent={(id) => setSelectedComponentId(id)}
       />

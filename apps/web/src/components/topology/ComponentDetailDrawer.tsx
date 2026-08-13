@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   X,
@@ -16,22 +17,29 @@ import {
   Server,
   HardDrive,
   Radio,
+  Search,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../../lib/api';
-import { ComponentDetail } from '@opspilot/types';
+import { ComponentDetail, EstateNode, EstateChaosScenario } from '@opspilot/types';
 
 interface ComponentDetailDrawerProps {
   componentId: string | null;
+  topologyNode?: EstateNode | null;
+  activeScenario?: EstateChaosScenario | null;
   onClose: () => void;
   onSelectComponent: (id: string) => void;
 }
 
 export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
   componentId,
+  topologyNode,
+  activeScenario,
   onClose,
   onSelectComponent,
 }) => {
+  const navigate = useNavigate();
+
   const { data: detailData, isLoading } = useQuery({
     queryKey: ['topology', 'component', componentId],
     queryFn: async () => {
@@ -47,12 +55,18 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
 
   const detail: ComponentDetail | undefined = detailData ?? undefined;
   const node = detail?.node;
-  const health = node?.health ?? 'GREEN';
+  
+  // Single Source of Truth: Topology node health overrides backend component detail health
+  const health = topologyNode?.health ?? node?.health ?? 'GREEN';
 
-  // Derived operational metrics
-  const p99 = node?.metrics.latencyP99Ms ?? 45;
+  // Derived operational metrics from topology node if present, fallback to detail node
+  const throughputRps = topologyNode?.metrics.throughputRps ?? node?.metrics.throughputRps ?? 0;
+  const p99 = topologyNode?.metrics.latencyP99Ms ?? node?.metrics.latencyP99Ms ?? 45;
   const p50 = Math.round(p99 * 0.35);
   const p95 = Math.round(p99 * 0.85);
+  const errorRatePercent = topologyNode?.metrics.errorRatePercent ?? node?.metrics.errorRatePercent ?? 0;
+  const cpuPercent = topologyNode?.metrics.cpuPercent ?? node?.metrics.cpuPercent ?? 30;
+  const memoryPercent = topologyNode?.metrics.memoryPercent ?? node?.metrics.memoryPercent ?? 40;
 
   return (
     <div
@@ -116,7 +130,7 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
           <div className="grid grid-cols-4 gap-2 font-mono">
             <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80">
               <span className="text-[10px] text-slate-400 font-medium block uppercase font-sans">Throughput</span>
-              <span className="text-base font-bold text-white">{node?.metrics.throughputRps ?? 0}</span>
+              <span className="text-base font-bold text-white">{throughputRps}</span>
               <span className="text-[10px] text-slate-500 block font-sans">RPS</span>
             </div>
 
@@ -136,10 +150,10 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
               <span className="text-[10px] text-slate-400 font-medium block uppercase font-sans">Error Rate</span>
               <span
                 className={`text-base font-bold ${
-                  (node?.metrics.errorRatePercent ?? 0) > 1.0 ? 'text-rose-400' : 'text-white'
+                  errorRatePercent > 1.0 ? 'text-rose-400' : 'text-white'
                 }`}
               >
-                {(node?.metrics.errorRatePercent ?? 0).toFixed(1)}%
+                {errorRatePercent.toFixed(1)}%
               </span>
               <span className="text-[10px] text-slate-500 block font-sans">http 5xx</span>
             </div>
@@ -147,7 +161,7 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
             <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80">
               <span className="text-[10px] text-slate-400 font-medium block uppercase font-sans">Conn / Queue</span>
               <span className="text-base font-bold text-white">
-                {node?.type.includes('db') ? '48' : node?.type.includes('broker') ? '120' : '16'}
+                {componentId.includes('db') ? '48' : componentId.includes('broker') ? '120' : '16'}
               </span>
               <span className="text-[10px] text-slate-500 block font-sans">active</span>
             </div>
@@ -159,12 +173,12 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
               <span className="text-slate-300 font-medium flex items-center gap-1.5">
                 <Cpu className="w-3.5 h-3.5 text-blue-400" /> CPU Utilization
               </span>
-              <span className="font-mono text-white font-bold">{node?.metrics.cpuPercent ?? 30}%</span>
+              <span className="font-mono text-white font-bold">{cpuPercent}%</span>
             </div>
             <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-blue-500 h-full transition-all"
-                style={{ width: `${Math.min(100, node?.metrics.cpuPercent ?? 30)}%` }}
+                style={{ width: `${Math.min(100, cpuPercent)}%` }}
               />
             </div>
 
@@ -172,12 +186,12 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
               <span className="text-slate-300 font-medium flex items-center gap-1.5">
                 <Database className="w-3.5 h-3.5 text-purple-400" /> Memory Usage
               </span>
-              <span className="font-mono text-white font-bold">{node?.metrics.memoryPercent ?? 40}%</span>
+              <span className="font-mono text-white font-bold">{memoryPercent}%</span>
             </div>
             <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-purple-500 h-full transition-all"
-                style={{ width: `${Math.min(100, node?.metrics.memoryPercent ?? 40)}%` }}
+                style={{ width: `${Math.min(100, memoryPercent)}%` }}
               />
             </div>
           </div>
@@ -266,24 +280,49 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
             </div>
           </div>
 
-          {/* Active Incidents */}
-          {detail?.activeIncidents && detail.activeIncidents.length > 0 && (
+          {/* Active Incidents & Investigation CTA */}
+          {(health === 'RED' || (detail?.activeIncidents && detail.activeIncidents.length > 0)) && (
             <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2.5">
-              <h3 className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-rose-400 animate-bounce" /> Active Incidents (
-                {detail.activeIncidents.length})
+              <h3 className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Flame className="w-4 h-4 text-rose-400 animate-bounce" /> Active Incident Link
+                </span>
+                <span className="px-2 py-0.5 rounded bg-rose-500/30 text-rose-200 border border-rose-500/50 font-mono text-[10px]">
+                  {detail?.activeIncidents?.[0]?.severity ?? 'CRITICAL'}
+                </span>
               </h3>
-              {detail.activeIncidents.map((inc: any) => (
-                <div key={inc.id} className="p-3 rounded-lg bg-slate-900/90 border border-rose-500/30 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-white font-mono">{inc.incidentNumber}</span>
-                    <span className="px-2 py-0.5 rounded bg-rose-500 text-white font-bold text-[10px]">
-                      {inc.severity}
-                    </span>
+
+              {detail?.activeIncidents && detail.activeIncidents.length > 0 ? (
+                detail.activeIncidents.map((inc: any) => (
+                  <div key={inc.id} className="p-3 rounded-lg bg-slate-900/90 border border-rose-500/30 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-white font-mono">{inc.incidentNumber ?? inc.id}</span>
+                      <span className="px-2 py-0.5 rounded bg-rose-500 text-white font-bold text-[10px]">
+                        {inc.severity}
+                      </span>
+                    </div>
+                    <p className="text-slate-200 font-medium">{inc.title}</p>
+                    <button
+                      onClick={() => navigate(`/incidents/${inc.id}`)}
+                      className="w-full py-1.5 px-3 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-rose-600/30"
+                    >
+                      <Search className="w-3.5 h-3.5" /> INVESTIGATE INCIDENT & VIEW RCA
+                    </button>
                   </div>
-                  <p className="text-slate-200 font-medium">{inc.title}</p>
+                ))
+              ) : (
+                <div className="p-3 rounded-lg bg-slate-900/90 border border-rose-500/30 text-xs space-y-2">
+                  <p className="text-slate-200 font-medium">
+                    {activeScenario?.name ?? `Critical anomaly detected on ${topologyNode?.name ?? componentId}`}
+                  </p>
+                  <button
+                    onClick={() => navigate('/incidents')}
+                    className="w-full py-1.5 px-3 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-rose-600/30"
+                  >
+                    <Search className="w-3.5 h-3.5" /> INVESTIGATE INCIDENT FEED
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           )}
 
