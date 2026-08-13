@@ -94,7 +94,7 @@ export function AnalyticsDashboard() {
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <KPI label="MTTD" value={overview?.mttdSeconds ? formatDuration(overview.mttdSeconds) : '—'} sub="detection" />
         <KPI label="MTTA" value={overview?.mttaSeconds ? formatDuration(overview.mttaSeconds) : '—'} sub="acknowledgement" />
         <KPI label="MTTR" value={overview?.mttrSeconds ? formatDuration(overview.mttrSeconds) : '—'} sub="resolution" />
@@ -103,10 +103,10 @@ export function AnalyticsDashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Daily incidents bar chart */}
         <div
-          className="col-span-2 rounded-xl border p-5"
+          className="lg:col-span-2 rounded-xl border p-4 sm:p-5"
           style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
         >
           <h2 className="text-sm font-semibold mb-4" style={{ color: 'hsl(var(--text-primary))' }}>

@@ -76,7 +76,7 @@ export function IncidentList() {
 
   return (
     <div className="space-y-4 fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
             Incidents
@@ -87,7 +87,7 @@ export function IncidentList() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Filter size={14} style={{ color: 'hsl(var(--text-tertiary))' }} />
           <select
             value={statusFilter}
@@ -120,9 +120,68 @@ export function IncidentList() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Mobile Card List View (sm:hidden) */}
+      <div className="block sm:hidden space-y-2.5">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="p-4 rounded-xl border skeleton h-20" />
+          ))
+        ) : incidents.length === 0 ? (
+          <div className="text-center py-12 border rounded-xl" style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}>
+            <AlertTriangle size={32} className="mx-auto mb-3" style={{ color: 'hsl(var(--text-tertiary))' }} />
+            <p style={{ color: 'hsl(var(--text-tertiary))' }}>No incidents found</p>
+          </div>
+        ) : (
+          incidents.map((inc) => (
+            <div
+              key={inc.id}
+              onClick={() => navigate(`/incidents/${inc.id}`)}
+              className="p-3.5 rounded-xl border transition-all hover:opacity-90 active:scale-[0.99] cursor-pointer"
+              style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="font-bold text-xs px-2 py-0.5 rounded"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      background: `${severityColor(inc.severity)}1a`,
+                      color: severityColor(inc.severity),
+                    }}
+                  >
+                    {inc.severity}
+                  </span>
+                  <span className="text-xs font-medium" style={{ color: 'hsl(var(--text-secondary))' }}>
+                    {inc.service?.name}
+                  </span>
+                </div>
+                <span
+                  className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                  style={{
+                    background: `${STATUS_COLORS[inc.status] ?? 'hsl(var(--text-tertiary))'}1a`,
+                    color: STATUS_COLORS[inc.status] ?? 'hsl(var(--text-tertiary))',
+                  }}
+                >
+                  {inc.status}
+                </span>
+              </div>
+              <h3 className="text-sm font-semibold mb-1" style={{ color: 'hsl(var(--text-primary))' }}>
+                {inc.title}
+              </h3>
+              <div className="flex items-center justify-between text-xs mt-2" style={{ color: 'hsl(var(--text-tertiary))' }}>
+                <span>{timeAgo(inc.detectedAt)}</span>
+                <span className="flex items-center gap-1 text-indigo-400 font-medium">
+                  Investigate <ChevronRight size={12} />
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop/Tablet Table View (hidden sm:block) */}
       <div
-        className="rounded-xl border overflow-hidden"
+        className="hidden sm:block rounded-xl border overflow-x-auto"
         style={{ borderColor: 'hsl(var(--border))' }}
       >
         <table className="w-full text-sm">

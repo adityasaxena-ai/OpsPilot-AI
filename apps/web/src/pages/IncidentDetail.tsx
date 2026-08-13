@@ -251,8 +251,8 @@ export function IncidentDetail() {
   return (
     <div className="space-y-6">
       {/* 8-Step Visual Lifecycle Stepper */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-md backdrop-blur-md">
-        <div className="flex items-center justify-between relative">
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 sm:p-4 shadow-md backdrop-blur-md overflow-x-auto scrollbar-none">
+        <div className="flex items-center justify-between relative min-w-[640px] md:min-w-0">
           {LIFECYCLE_STEPS.map((step, idx) => {
             const currentIdx = getStepIndex(status);
             const isPassed = step.id < currentIdx;
@@ -296,7 +296,7 @@ export function IncidentDetail() {
       </div>
 
       {/* Breadcrumb & Action Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <Link
           to="/incidents"
           className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:text-indigo-400"
@@ -306,7 +306,7 @@ export function IncidentDetail() {
         </Link>
 
         {/* AI Action Trigger Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {!isResolvedOrClosed && (
             <>
               <button

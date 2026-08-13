@@ -168,7 +168,7 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
       ) : (
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
           {/* Key Telemetry Metrics Grid */}
-          <div className="grid grid-cols-4 gap-2 font-mono">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
             <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800/80">
               <span className="text-[10px] text-slate-400 font-medium block uppercase font-sans">Throughput</span>
               <span className="text-base font-bold text-white">{throughputRps}</span>

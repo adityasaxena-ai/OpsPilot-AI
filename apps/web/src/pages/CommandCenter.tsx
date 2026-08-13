@@ -91,7 +91,7 @@ function ServiceHealthRow({ sim }: { sim: SimService }) {
       </div>
 
       {/* Mini sparkbar for each metric */}
-      <div className="flex-1 grid grid-cols-4 gap-3">
+      <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         {[
           { label: 'CPU', value: sim.cpuPercent, unit: '%', warn: 80 },
           { label: 'MEM', value: sim.memoryPercent, unit: '%', warn: 85 },
@@ -211,7 +211,7 @@ export function CommandCenter() {
 
       {/* Telemetry Provider Status & Fallback Banner */}
       <div
-        className="p-4 rounded-xl border flex items-center justify-between"
+        className="rounded-xl p-3.5 sm:p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3"
         style={{
           background: isReplayActive
             ? 'hsl(265 85% 65% / 0.1)'
@@ -222,42 +222,18 @@ export function CommandCenter() {
               ? 'hsl(38 92% 50% / 0.1)'
               : 'hsl(0 85% 60% / 0.1)'
             : 'hsl(var(--bg-surface-2))',
-          borderColor: isReplayActive
-            ? 'hsl(265 85% 65% / 0.3)'
-            : telemetryStatus?.providerName === 'otel'
-            ? telemetryStatus?.status === 'HEALTHY'
-              ? 'hsl(142 72% 45% / 0.3)'
-              : telemetryStatus?.details?.configured === false
-              ? 'hsl(38 92% 50% / 0.3)'
-              : 'hsl(0 85% 60% / 0.3)'
-            : 'hsl(var(--border))',
+          borderColor: 'hsl(var(--border))',
         }}
       >
         <div className="flex items-center gap-3">
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs"
-            style={{
-              background: isReplayActive
-                ? 'hsl(265 85% 65% / 0.2)'
-                : telemetryStatus?.status === 'HEALTHY'
-                ? 'hsl(142 72% 45% / 0.2)'
-                : telemetryStatus?.details?.configured === false
-                ? 'hsl(38 92% 50% / 0.2)'
-                : 'hsl(0 85% 60% / 0.2)',
-              color: isReplayActive
-                ? 'hsl(265 85% 70%)'
-                : telemetryStatus?.status === 'HEALTHY'
-                ? 'hsl(142 72% 55%)'
-                : telemetryStatus?.details?.configured === false
-                ? 'hsl(38 92% 60%)'
-                : 'hsl(0 85% 65%)',
-            }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-none"
+            style={{ background: 'hsl(220 90% 56% / 0.15)' }}
           >
-            {isReplayActive ? 'REPLAY' : telemetryStatus?.providerName?.toUpperCase() ?? 'OTEL'}
+            <Activity size={16} style={{ color: 'hsl(220 90% 65%)' }} />
           </div>
-
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold" style={{ color: 'hsl(var(--text-primary))' }}>
                 Active Telemetry Source: {telemetryStatus?.activeSource ?? 'OpenTelemetry Collector'}
               </span>
@@ -295,7 +271,7 @@ export function CommandCenter() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setProviderMutation.mutate('otel')}
             disabled={setProviderMutation.isPending}
@@ -356,7 +332,7 @@ export function CommandCenter() {
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
           label="Active Incidents"
           value={overviewLoading ? '—' : (overview?.activeIncidents ?? 0)}
@@ -391,7 +367,7 @@ export function CommandCenter() {
       </div>
 
       {/* Second row metrics */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
           label="MTTD"
           value={overview?.mttdSeconds ? formatDuration(overview.mttdSeconds) : '—'}
@@ -424,10 +400,10 @@ export function CommandCenter() {
       </div>
 
       {/* Service Health + Incidents side by side */}
-      <div className="grid grid-cols-3 gap-4">
-        {/* Service Health — spans 2 cols */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        {/* Service Health — spans 2 cols on lg */}
         <div
-          className="col-span-2 rounded-xl border p-4"
+          className="lg:col-span-2 rounded-xl border p-4"
           style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
         >
           <div className="flex items-center justify-between mb-3">
