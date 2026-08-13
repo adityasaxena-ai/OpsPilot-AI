@@ -40,6 +40,16 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const { data: detailData, isLoading } = useQuery({
     queryKey: ['topology', 'component', componentId],
     queryFn: async () => {
@@ -96,16 +106,6 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
 
   // Effective incident MUST strictly belong to this component (NO generic fallbacks)
   const effectiveIncident = detailIncident ?? matchingIncident ?? null;
-
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   // Single Source of Truth: Topology node health overrides backend component detail health
   const health = topologyNode?.health ?? node?.health ?? 'GREEN';
