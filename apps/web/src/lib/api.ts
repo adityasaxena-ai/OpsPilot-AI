@@ -137,6 +137,8 @@ export const api = {
       }),
     getInvestigations: (incidentId: string) =>
       request<{ success: boolean; data: unknown[] }>(`/ai/investigations/${incidentId}`),
+    getCopilot: (incidentId: string) =>
+      request<{ success: boolean; data: any }>(`/ai/copilot/${incidentId}`),
   },
 
   remediation: {

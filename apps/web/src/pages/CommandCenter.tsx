@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Activity, Bell, Clock, Zap, Server, TrendingUp, Shield } from 'lucide-react';
+import { AlertTriangle, Activity, Bell, Clock, Zap, Server, TrendingUp, Shield, Sparkles, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { severityColor, timeAgo, formatDuration } from '@/lib/utils';
@@ -364,6 +364,40 @@ export function CommandCenter() {
           sub="Incidents AI-triaged"
           to="/analytics"
         />
+      </div>
+
+      {/* Compact AI Operations Summary Banner */}
+      <div
+        className="rounded-xl p-3.5 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs fade-in"
+        style={{
+          background: 'hsl(265 85% 65% / 0.08)',
+          borderColor: 'hsl(265 85% 65% / 0.3)',
+        }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 shrink-0">
+            <Sparkles size={16} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
+              <span>AI Operations Summary:</span>
+              <span className="text-[11px] px-2 py-0.5 rounded font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {recentIncidents.length} Active {recentIncidents.length === 1 ? 'Incident' : 'Incidents'} Requiring Attention
+              </span>
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-secondary))' }}>
+              {recentIncidents.length > 0
+                ? `High-confidence triage active. Primary critical impact identified on ${recentIncidents[0]?.service?.name ?? 'core service'}.`
+                : 'All services operating within normal telemetry parameters.'}
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/incidents"
+          className="px-3 py-1.5 rounded-lg font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 transition-all shrink-0"
+        >
+          View Copilot Triage <ArrowRight size={13} />
+        </Link>
       </div>
 
       {/* Operational Incident Severity Distribution Strip */}
