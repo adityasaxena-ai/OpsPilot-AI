@@ -361,12 +361,12 @@ export function IncidentDetail() {
 
       {/* Incident Header Card */}
       <div
-        className="rounded-xl border p-5"
+        className="rounded-xl border p-4 sm:p-5"
         style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <span
                 className="font-bold text-xs px-2 py-0.5 rounded"
                 style={{
@@ -390,6 +390,30 @@ export function IncidentDetail() {
                   {svc?.name}
                 </span>
               )}
+
+              {/* Incident Age Badge */}
+              <span
+                className="text-xs px-2 py-0.5 rounded font-mono font-medium border"
+                style={{
+                  background: 'hsl(var(--bg-surface-2))',
+                  borderColor: 'hsl(var(--border))',
+                  color: 'hsl(var(--text-secondary))',
+                }}
+              >
+                Age: {timeAgo(incident['detectedAt'] as string || incident['createdAt'] as string)}
+              </span>
+
+              {/* Assigned Owner Badge */}
+              <span
+                className="text-xs px-2 py-0.5 rounded font-mono font-medium border"
+                style={{
+                  background: 'hsl(220 90% 56% / 0.1)',
+                  borderColor: 'hsl(220 90% 56% / 0.25)',
+                  color: 'hsl(220 90% 70%)',
+                }}
+              >
+                Owner: {(incident as any)['assignedTo']?.name ?? 'SRE On-Call Team'}
+              </span>
             </div>
             <h1 className="text-lg font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
               {incident['title'] as string}
@@ -398,9 +422,9 @@ export function IncidentDetail() {
               {incident['description'] as string}
             </p>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <div className="text-xs mb-1" style={{ color: 'hsl(var(--text-tertiary))' }}>Status</div>
-            <div className="text-sm font-medium px-2.5 py-0.5 rounded" style={{ background: 'hsl(var(--bg-surface-2))', color: 'hsl(var(--text-primary))' }}>
+            <div className="text-sm font-medium px-2.5 py-0.5 rounded inline-block sm:block" style={{ background: 'hsl(var(--bg-surface-2))', color: 'hsl(var(--text-primary))' }}>
               {status}
             </div>
           </div>

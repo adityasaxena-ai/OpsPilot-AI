@@ -26,6 +26,7 @@ export const incidentsRoutes: FastifyPluginAsync = async (app) => {
         where,
         include: {
           service: { select: { id: true, name: true, slug: true, tier: true } },
+          assignedTo: { select: { id: true, name: true, email: true } },
           _count: { select: { alertGroups: true, evidence: true, remediations: true } },
         },
         orderBy: { detectedAt: 'desc' },

@@ -386,7 +386,7 @@ export function CommandCenter() {
           >
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
             <span>P1 Critical:</span>
-            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P1_CRITICAL').length}</span>
+            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P1_CRITICAL' || i.severity === 'P1').length}</span>
           </Link>
           <Link
             to="/incidents?severity=P2_HIGH"
@@ -399,7 +399,7 @@ export function CommandCenter() {
           >
             <span className="w-2 h-2 rounded-full bg-orange-500" />
             <span>P2 High:</span>
-            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P2_HIGH').length}</span>
+            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P2_HIGH' || i.severity === 'P2').length}</span>
           </Link>
           <Link
             to="/incidents?severity=P3_MEDIUM"
@@ -412,7 +412,7 @@ export function CommandCenter() {
           >
             <span className="w-2 h-2 rounded-full bg-amber-400" />
             <span>P3 Medium:</span>
-            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P3_MEDIUM').length}</span>
+            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P3_MEDIUM' || i.severity === 'P3').length}</span>
           </Link>
           <Link
             to="/incidents?severity=P4_LOW"
@@ -425,7 +425,7 @@ export function CommandCenter() {
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>P4 Low:</span>
-            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P4_LOW').length}</span>
+            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P4_LOW' || i.severity === 'P4').length}</span>
           </Link>
         </div>
       </div>

@@ -105,24 +105,30 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
       orderBy: { detectedAt: 'asc' },
     });
 
-    // Group by day
+    // Group by day and calculate service concentration
     const byDay: Record<string, number> = {};
+    const byService: Record<string, number> = {};
+
     for (const inc of incidents) {
       const day = inc.detectedAt.toISOString().substring(0, 10);
       byDay[day] = (byDay[day] ?? 0) + 1;
+
+      if (inc.serviceId) {
+        byService[inc.serviceId] = (byService[inc.serviceId] ?? 0) + 1;
+      }
     }
 
     const bySeverity = {
-      P1: incidents.filter((i) => i.severity === 'P1').length,
-      P2: incidents.filter((i) => i.severity === 'P2').length,
-      P3: incidents.filter((i) => i.severity === 'P3').length,
-      P4: incidents.filter((i) => i.severity === 'P4').length,
-      P5: incidents.filter((i) => i.severity === 'P5').length,
+      P1: incidents.filter((i) => (i.severity as string) === 'P1' || (i.severity as string) === 'P1_CRITICAL').length,
+      P2: incidents.filter((i) => (i.severity as string) === 'P2' || (i.severity as string) === 'P2_HIGH').length,
+      P3: incidents.filter((i) => (i.severity as string) === 'P3' || (i.severity as string) === 'P3_MEDIUM').length,
+      P4: incidents.filter((i) => (i.severity as string) === 'P4' || (i.severity as string) === 'P4_LOW').length,
+      P5: incidents.filter((i) => (i.severity as string) === 'P5').length,
     };
 
     return {
       success: true,
-      data: { byDay, bySeverity, total: incidents.length },
+      data: { byDay, bySeverity, byService, total: incidents.length },
     };
   });
 

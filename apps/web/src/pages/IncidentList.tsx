@@ -59,6 +59,7 @@ export function IncidentList() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('');
   const [severityFilter, setSeverityFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data, isLoading } = useQuery({
@@ -75,7 +76,15 @@ export function IncidentList() {
   const rawIncidents = (data?.data as Incident[] | undefined) ?? [];
   const total = (data?.meta as { total?: number } | undefined)?.total ?? 0;
 
+  // Extract unique service names for the Service Filter dropdown
+  const uniqueServices = Array.from(
+    new Set(rawIncidents.map((i) => i.service?.name).filter(Boolean)),
+  );
+
   const incidents = rawIncidents.filter((inc) => {
+    if (serviceFilter && inc.service?.name !== serviceFilter && inc.service?.slug !== serviceFilter) {
+      return false;
+    }
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -101,7 +110,7 @@ export function IncidentList() {
         {/* Search & Filters */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Instant Search Input */}
-          <div className="relative flex-1 sm:w-48">
+          <div className="relative flex-1 sm:w-44">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'hsl(var(--text-tertiary))' }} />
             <input
               type="text"
@@ -120,9 +129,26 @@ export function IncidentList() {
 
           <Filter size={14} style={{ color: 'hsl(var(--text-tertiary))' }} />
           <select
+            value={serviceFilter}
+            onChange={(e) => setServiceFilter(e.target.value)}
+            className="text-xs px-2.5 py-1.5 rounded-lg border outline-none max-w-[130px]"
+            style={{
+              background: 'hsl(var(--bg-surface))',
+              borderColor: 'hsl(var(--border))',
+              color: 'hsl(var(--text-secondary))',
+            }}
+            aria-label="Filter by Service"
+          >
+            <option value="">All Services</option>
+            {uniqueServices.map((svc) => (
+              <option key={svc} value={svc}>{svc}</option>
+            ))}
+          </select>
+
+          <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs px-3 py-1.5 rounded-lg border outline-none"
+            className="text-xs px-2.5 py-1.5 rounded-lg border outline-none max-w-[130px]"
             style={{
               background: 'hsl(var(--bg-surface))',
               borderColor: 'hsl(var(--border))',
@@ -137,7 +163,7 @@ export function IncidentList() {
           <select
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
-            className="text-xs px-3 py-1.5 rounded-lg border outline-none"
+            className="text-xs px-2.5 py-1.5 rounded-lg border outline-none max-w-[130px]"
             style={{
               background: 'hsl(var(--bg-surface))',
               borderColor: 'hsl(var(--border))',

@@ -95,10 +95,10 @@ export function AnalyticsDashboard() {
 
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-        <KPI label="MTTD" value={overview?.mttdSeconds ? formatDuration(overview.mttdSeconds) : '—'} sub="detection" />
-        <KPI label="MTTA" value={overview?.mttaSeconds ? formatDuration(overview.mttaSeconds) : '—'} sub="acknowledgement" />
-        <KPI label="MTTR" value={overview?.mttrSeconds ? formatDuration(overview.mttrSeconds) : '—'} sub="resolution" />
-        <KPI label="SLO Compliance" value={overview?.sloCompliancePercent != null ? `${overview.sloCompliancePercent}%` : '—'} />
+        <KPI label="MTTD" value={overview?.mttdSeconds ? formatDuration(overview.mttdSeconds) : '—'} sub="detectedAt - createdAt" />
+        <KPI label="MTTA" value={overview?.mttaSeconds ? formatDuration(overview.mttaSeconds) : '—'} sub="triagedAt - detectedAt" />
+        <KPI label="MTTR" value={overview?.mttrSeconds ? formatDuration(overview.mttrSeconds) : '—'} sub="resolvedAt - detectedAt (resolved only)" />
+        <KPI label="SLO Compliance" value={overview?.sloCompliancePercent != null ? `${overview.sloCompliancePercent}%` : '—'} sub="target: 99.0%" />
         <KPI label="Hours Saved" value={automation?.estimatedHoursSaved != null ? `${automation.estimatedHoursSaved.toFixed(0)}h` : '—'} sub="via AI automation" />
       </div>
 
@@ -199,7 +199,7 @@ export function AnalyticsDashboard() {
         <h2 className="text-sm font-semibold mb-4" style={{ color: 'hsl(var(--text-primary))' }}>
           AI Automation Performance
         </h2>
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {[
             { label: 'Total Incidents', value: automation?.totalIncidents ?? '—' },
             { label: 'AI Triaged', value: automation?.aiTriaged ?? '—', accent: true },
