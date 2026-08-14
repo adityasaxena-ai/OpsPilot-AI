@@ -149,6 +149,47 @@ export function IncidentDetail() {
     },
   });
 
+  const [sseStep, setSseStep] = useState<string | null>(null);
+  const [sseProgress, setSseProgress] = useState<number>(0);
+  const [sseLabel, setSseLabel] = useState<string>('');
+  const [isSseActive, setIsSseActive] = useState<boolean>(false);
+  const [sseError, setSseError] = useState<string | null>(null);
+
+  const handleStartSSE = (incidentId: string) => {
+    setIsSseActive(true);
+    setSseError(null);
+    setSseStep('QUEUED');
+    setSseProgress(15);
+    setSseLabel('Investigation Queued in AI Orchestrator');
+
+    const streamUrl = `/api/v1/ai/investigate/stream/${incidentId}`;
+    const eventSource = new EventSource(streamUrl);
+
+    eventSource.addEventListener('progress', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        setSseStep(data.step);
+        setSseProgress(data.progress);
+        setSseLabel(data.label);
+        if (data.step === 'COMPLETE') {
+          eventSource.close();
+          setIsSseActive(false);
+          queryClient.invalidateQueries({ queryKey: ['copilot', incidentId] });
+          queryClient.invalidateQueries({ queryKey: ['incident', incidentId] });
+          refetchTimeline();
+        }
+      } catch (err) {
+        console.error('SSE Error parsing data:', err);
+      }
+    });
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      setIsSseActive(false);
+      setSseError('AI investigation stream disconnected — incident telemetry remains available.');
+    };
+  };
+
   const investigateMutation = useMutation({
     mutationFn: () => api.ai.investigate(id!),
     onSuccess: () => {
@@ -554,20 +595,24 @@ export function IncidentDetail() {
         <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
           <span className="text-xs font-semibold mr-1" style={{ color: 'hsl(var(--text-tertiary))' }}>AI Actions:</span>
           <button
-            onClick={() => investigateMutation.mutate()}
-            disabled={investigateMutation.isPending}
-            className="px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center gap-1 transition-all"
+            onClick={() => {
+              if (id) handleStartSSE(id);
+            }}
+            disabled={isSseActive || investigateMutation.isPending}
+            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-60 flex items-center gap-1.5 transition-all shadow-md shadow-indigo-950/40 min-h-[44px] sm:min-h-0"
           >
-            <Activity size={12} className={investigateMutation.isPending ? 'animate-spin' : ''} />
-            {investigateMutation.isPending ? 'Investigating…' : 'Investigate Incident'}
+            <Activity size={13} className={isSseActive || investigateMutation.isPending ? 'animate-spin' : ''} />
+            {isSseActive ? 'Running Live Stream…' : 'Investigate Incident'}
           </button>
 
           <button
-            onClick={() => rcaMutation.mutate()}
-            disabled={rcaMutation.isPending}
-            className="px-2.5 py-1 rounded-md text-xs font-medium bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 flex items-center gap-1 transition-all"
+            onClick={() => {
+              if (id) handleStartSSE(id);
+            }}
+            disabled={isSseActive || rcaMutation.isPending}
+            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 flex items-center gap-1.5 transition-all min-h-[44px] sm:min-h-0"
           >
-            <Sparkles size={12} className={rcaMutation.isPending ? 'animate-spin' : ''} />
+            <Sparkles size={13} className={rcaMutation.isPending ? 'animate-spin' : ''} />
             {rcaMutation.isPending ? 'Analyzing…' : 'Explain Root Cause'}
           </button>
 
@@ -576,9 +621,9 @@ export function IncidentDetail() {
               const el = document.getElementById('impact-services');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="px-2.5 py-1 rounded-md text-xs font-medium bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 flex items-center gap-1 transition-all"
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 flex items-center gap-1.5 transition-all min-h-[44px] sm:min-h-0"
           >
-            <ExternalLink size={12} />
+            <ExternalLink size={13} />
             Analyze Impact
           </button>
 
@@ -587,12 +632,92 @@ export function IncidentDetail() {
               const el = document.getElementById('incident-timeline');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 transition-all"
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition-all min-h-[44px] sm:min-h-0"
           >
-            <Clock size={12} />
+            <Clock size={13} />
             Summarize Timeline
           </button>
         </div>
+
+        {/* Live SSE Investigation Stream Progress Banner */}
+        {isSseActive && (
+          <div className="p-3.5 rounded-lg border space-y-2.5 fade-in bg-indigo-950/30 border-indigo-500/40">
+            <div className="flex items-center justify-between text-xs font-medium text-indigo-200">
+              <span className="flex items-center gap-2">
+                <RefreshCw size={13} className="animate-spin text-indigo-400" />
+                <span>{sseLabel}</span>
+              </span>
+              <span className="font-mono text-indigo-300 font-bold">{sseProgress}%</span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full h-1.5 rounded-full bg-indigo-950 border border-indigo-500/30 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+                style={{ width: `${sseProgress}%` }}
+              />
+            </div>
+
+            {/* Step Sequence Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[10px] font-mono font-medium pt-1">
+              {[
+                { step: 'QUEUED', label: '1. Queued' },
+                { step: 'COLLECTING_EVIDENCE', label: '2. Evidence' },
+                { step: 'CORRELATING_TELEMETRY', label: '3. Telemetry' },
+                { step: 'AI_ANALYSIS', label: '4. AI Analysis' },
+                { step: 'COMPLETE', label: '5. Ready' },
+              ].map((s) => {
+                const isCurrent = sseStep === s.step;
+                const isCompleted =
+                  (s.step === 'QUEUED' && sseProgress > 15) ||
+                  (s.step === 'COLLECTING_EVIDENCE' && sseProgress > 40) ||
+                  (s.step === 'CORRELATING_TELEMETRY' && sseProgress > 70) ||
+                  (s.step === 'AI_ANALYSIS' && sseProgress > 88) ||
+                  (s.step === 'COMPLETE' && sseProgress >= 100);
+
+                return (
+                  <div
+                    key={s.step}
+                    className="p-1 rounded text-center border truncate transition-all"
+                    style={{
+                      background: isCurrent
+                        ? 'hsl(265 85% 65% / 0.25)'
+                        : isCompleted
+                        ? 'hsl(142 72% 45% / 0.15)'
+                        : 'hsl(var(--bg-surface-2))',
+                      borderColor: isCurrent
+                        ? 'hsl(265 85% 65% / 0.5)'
+                        : isCompleted
+                        ? 'hsl(142 72% 45% / 0.3)'
+                        : 'hsl(var(--border))',
+                      color: isCurrent
+                        ? 'hsl(265 85% 75%)'
+                        : isCompleted
+                        ? 'hsl(142 72% 55%)'
+                        : 'hsl(var(--text-tertiary))',
+                    }}
+                  >
+                    {isCompleted ? '✓ ' : isCurrent ? '⏳ ' : ''}
+                    {s.label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* SSE Error / Fallback Banner */}
+        {sseError && (
+          <div className="p-3 rounded-lg border text-xs bg-amber-950/30 border-amber-500/40 text-amber-300 flex items-center justify-between">
+            <span>{sseError}</span>
+            <button
+              onClick={() => setSseError(null)}
+              className="text-[11px] underline hover:text-white"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* Facts vs Inferences Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

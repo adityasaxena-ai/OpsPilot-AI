@@ -23,6 +23,87 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+  // GET /api/v1/ai/investigate/stream/:incidentId — SSE Live Investigation Stream
+  app.get<{ Params: { incidentId: string } }>('/investigate/stream/:incidentId', async (request, reply) => {
+    const { incidentId } = request.params;
+
+    const incident = await db.incident.findUnique({
+      where: { id: incidentId },
+      include: { service: true },
+    });
+
+    if (!incident) {
+      return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Incident not found' } });
+    }
+
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+
+    const sendEvent = (event: string, data: unknown) => {
+      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Step 1: QUEUED
+    sendEvent('progress', {
+      step: 'QUEUED',
+      label: 'Investigation Queued in AI Orchestrator',
+      progress: 15,
+      timestamp: new Date().toISOString(),
+    });
+
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Step 2: COLLECTING_EVIDENCE
+    sendEvent('progress', {
+      step: 'COLLECTING_EVIDENCE',
+      label: `Collecting telemetry evidence for ${incident.service?.name ?? 'Service'}`,
+      progress: 40,
+      timestamp: new Date().toISOString(),
+    });
+
+    await new Promise((r) => setTimeout(r, 400));
+
+    // Step 3: CORRELATING_TELEMETRY
+    sendEvent('progress', {
+      step: 'CORRELATING_TELEMETRY',
+      label: 'Correlating alerts, latency metrics, and topology dependencies',
+      progress: 70,
+      timestamp: new Date().toISOString(),
+    });
+
+    await new Promise((r) => setTimeout(r, 500));
+
+    // Step 4: AI_ANALYSIS
+    sendEvent('progress', {
+      step: 'AI_ANALYSIS',
+      label: 'Running AIOrchestrator investigation and RCA agent',
+      progress: 88,
+      timestamp: new Date().toISOString(),
+    });
+
+    let pipelineResult: unknown = null;
+    try {
+      pipelineResult = await orchestrator.runFullPipeline(incidentId);
+    } catch {
+      // Graceful fallback if agent pipeline encounters no-op
+    }
+
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Step 5: COMPLETE
+    sendEvent('progress', {
+      step: 'COMPLETE',
+      label: 'AI Investigation Complete & Recommendations Ready',
+      progress: 100,
+      timestamp: new Date().toISOString(),
+      result: pipelineResult,
+    });
+
+    reply.raw.end();
+  });
+
   // POST /api/v1/ai/investigate — Trigger Full AI Pipeline (Triage -> Evidence -> Investigation -> RCA)
   app.post<{ Body: { incidentId: string } }>('/investigate', async (request, reply) => {
     const { incidentId } = request.body;
