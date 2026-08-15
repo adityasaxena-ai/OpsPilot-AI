@@ -339,13 +339,14 @@ export function CommandCenter() {
           icon={AlertTriangle}
           color="hsl(0 85% 65%)"
           sub={`${overview?.resolvedToday ?? 0} resolved today`}
-          to="/incidents"
+          to="/incidents?status=ACTIVE"
         />
         <MetricCard
           label="Alerts Today"
           value={overviewLoading ? '—' : (overview?.alertsToday ?? 0)}
           icon={Bell}
           color="hsl(25 95% 60%)"
+          sub="Triggered alert notifications"
           to="/incidents"
         />
         <MetricCard
@@ -357,19 +358,20 @@ export function CommandCenter() {
           to="/analytics"
         />
         <MetricCard
-          label="AI Triage Rate"
-          value={overview?.aiTriageRate != null ? `${overview.aiTriageRate}%` : '—'}
+          label="SLO Compliance"
+          value={overview?.sloCompliancePercent != null ? `${overview.sloCompliancePercent}%` : '—'}
           icon={Zap}
-          color="hsl(265 85% 65%)"
-          sub="Incidents AI-triaged"
+          color="hsl(142 72% 45%)"
+          sub="Target: 99.0%"
           to="/analytics"
         />
       </div>
 
-      {/* Compact AI Operations Summary Banner & Recent Change Risk Indicator */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Single Consolidated Row Below KPIs: AI Operations Summary | Recent Change Risk | Active Severity Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        {/* 1. AI Operations Summary Card */}
         <div
-          className="md:col-span-2 rounded-xl p-3.5 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs fade-in"
+          className="rounded-xl p-4 border flex flex-col justify-between gap-3 text-xs fade-in"
           style={{
             background: 'hsl(265 85% 65% / 0.08)',
             borderColor: 'hsl(265 85% 65% / 0.3)',
@@ -381,107 +383,123 @@ export function CommandCenter() {
             </div>
             <div>
               <div className="flex items-center gap-2 font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
-                <span>AI Operations Summary:</span>
-                <span className="text-[11px] px-2 py-0.5 rounded font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  {recentIncidents.length} Active {recentIncidents.length === 1 ? 'Incident' : 'Incidents'} Requiring Attention
-                </span>
+                <span>AI Operations Summary</span>
               </div>
-              <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-secondary))' }}>
-                {recentIncidents.length > 0
-                  ? `High-confidence triage active. Primary critical impact identified on ${recentIncidents[0]?.service?.name ?? 'core service'}.`
-                  : 'All services operating within normal telemetry parameters.'}
-              </p>
+              <span className="text-[11px] font-mono text-indigo-300 mt-0.5 block">
+                {recentIncidents.length} Active Incidents Requiring Attention
+              </span>
             </div>
           </div>
+          <p className="text-xs" style={{ color: 'hsl(var(--text-secondary))' }}>
+            {recentIncidents.length > 0
+              ? `High-confidence triage active. Primary critical impact on ${recentIncidents[0]?.service?.name ?? 'core service'}.`
+              : 'All services operating within normal telemetry parameters.'}
+          </p>
           <Link
-            to="/incidents"
-            className="px-3 py-1.5 rounded-lg font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 transition-all shrink-0 min-h-[44px] sm:min-h-0"
+            to="/incidents?status=IMMEDIATE_ATTENTION"
+            className="px-3 py-2 rounded-lg font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center justify-between transition-all min-h-[44px] sm:min-h-0"
           >
-            View Copilot Triage <ArrowRight size={13} />
+            <span>View Co-Pilot Triage</span>
+            <ArrowRight size={13} />
           </Link>
         </div>
 
-        {/* Recent Change Risk Indicator Card */}
+        {/* 2. Recent Change Risk Indicator Card */}
         <Link
-          to={recentIncidents[0] ? `/incidents/${recentIncidents[0].id}` : '/incidents'}
-          className="rounded-xl p-3.5 border text-xs fade-in flex flex-col justify-between transition-all hover:border-amber-500/50 bg-amber-950/20 border-amber-500/30 min-h-[44px]"
+          to="/incidents?change=v2.4.0-bad"
+          className="rounded-xl p-4 border text-xs fade-in flex flex-col justify-between transition-all hover:border-amber-500/50 bg-amber-950/20 border-amber-500/30 min-h-[44px]"
         >
           <div className="flex items-center justify-between">
             <span className="font-bold uppercase tracking-wider text-[11px] text-amber-300">RECENT CHANGE RISK</span>
-            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
               HIGH
             </span>
           </div>
-          <div className="mt-1 text-amber-200">
-            <span className="font-semibold">{recentIncidents.length} active incidents</span> correlated with release
-            <div className="font-mono text-[11px] text-amber-300/80 truncate mt-0.5">
-              Highest: {recentIncidents[0]?.service?.name ?? 'Payment DB'} / v2.4.0-bad
-            </div>
+          <div className="text-amber-200 space-y-1">
+            <span className="font-semibold block">{recentIncidents.length} correlated active incidents</span>
+            <p className="text-[11px] text-amber-300/80 leading-snug">
+              Correlated release: <span className="font-mono font-bold text-amber-200">v2.4.0-bad</span> on {recentIncidents[0]?.service?.name ?? 'Payment DB'}
+            </p>
+          </div>
+          <div className="flex items-center justify-between text-amber-300 font-semibold text-[11px] pt-1 border-t border-amber-500/20">
+            <span>Inspect Correlated Group</span>
+            <ArrowRight size={13} />
           </div>
         </Link>
-      </div>
 
-      {/* Operational Incident Severity Distribution Strip */}
-      <div
-        className="rounded-xl p-3 border flex flex-wrap items-center justify-between gap-3 text-xs"
-        style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
-      >
-        <span className="font-semibold uppercase tracking-wider text-[11px]" style={{ color: 'hsl(var(--text-tertiary))' }}>
-          Active Severity Breakdown
-        </span>
-        <div className="flex flex-wrap items-center gap-2 font-mono">
-          <Link
-            to="/incidents?severity=P1_CRITICAL"
-            className="px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-opacity hover:opacity-80"
-            style={{
-              background: 'hsl(0 85% 60% / 0.15)',
-              borderColor: 'hsl(0 85% 60% / 0.3)',
-              color: 'hsl(0 85% 70%)',
-            }}
-          >
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-            <span>P1 Critical:</span>
-            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P1_CRITICAL' || i.severity === 'P1').length}</span>
-          </Link>
-          <Link
-            to="/incidents?severity=P2_HIGH"
-            className="px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-opacity hover:opacity-80"
-            style={{
-              background: 'hsl(25 95% 60% / 0.15)',
-              borderColor: 'hsl(25 95% 60% / 0.3)',
-              color: 'hsl(25 95% 65%)',
-            }}
-          >
-            <span className="w-2 h-2 rounded-full bg-orange-500" />
-            <span>P2 High:</span>
-            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P2_HIGH' || i.severity === 'P2').length}</span>
-          </Link>
-          <Link
-            to="/incidents?severity=P3_MEDIUM"
-            className="px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-opacity hover:opacity-80"
-            style={{
-              background: 'hsl(48 95% 58% / 0.15)',
-              borderColor: 'hsl(48 95% 58% / 0.3)',
-              color: 'hsl(48 95% 65%)',
-            }}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            <span>P3 Medium:</span>
-            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P3_MEDIUM' || i.severity === 'P3').length}</span>
-          </Link>
-          <Link
-            to="/incidents?severity=P4_LOW"
-            className="px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-opacity hover:opacity-80"
-            style={{
-              background: 'hsl(142 72% 45% / 0.15)',
-              borderColor: 'hsl(142 72% 45% / 0.3)',
-              color: 'hsl(142 72% 55%)',
-            }}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>P4 Low:</span>
-            <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P4_LOW' || i.severity === 'P4').length}</span>
-          </Link>
+        {/* 3. Active Severity Breakdown Card */}
+        <div
+          className="rounded-xl p-4 border flex flex-col justify-between gap-2 text-xs"
+          style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-bold uppercase tracking-wider text-[11px]" style={{ color: 'hsl(var(--text-tertiary))' }}>
+              Active Severity Breakdown
+            </span>
+            <span className="text-[10px] font-mono text-slate-400 font-medium">Live Tally</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 font-mono">
+            <Link
+              to="/incidents?severity=P1"
+              className="p-2 rounded-lg border flex items-center justify-between transition-opacity hover:opacity-80"
+              style={{
+                background: 'hsl(0 85% 60% / 0.15)',
+                borderColor: 'hsl(0 85% 60% / 0.3)',
+                color: 'hsl(0 85% 70%)',
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                <span className="text-xs font-semibold">P1</span>
+              </div>
+              <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P1_CRITICAL' || i.severity === 'P1').length}</span>
+            </Link>
+            <Link
+              to="/incidents?severity=P2"
+              className="p-2 rounded-lg border flex items-center justify-between transition-opacity hover:opacity-80"
+              style={{
+                background: 'hsl(25 95% 60% / 0.15)',
+                borderColor: 'hsl(25 95% 60% / 0.3)',
+                color: 'hsl(25 95% 65%)',
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <span className="text-xs font-semibold">P2</span>
+              </div>
+              <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P2_HIGH' || i.severity === 'P2').length}</span>
+            </Link>
+            <Link
+              to="/incidents?severity=P3"
+              className="p-2 rounded-lg border flex items-center justify-between transition-opacity hover:opacity-80"
+              style={{
+                background: 'hsl(48 95% 58% / 0.15)',
+                borderColor: 'hsl(48 95% 58% / 0.3)',
+                color: 'hsl(48 95% 65%)',
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                <span className="text-xs font-semibold">P3</span>
+              </div>
+              <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P3_MEDIUM' || i.severity === 'P3').length}</span>
+            </Link>
+            <Link
+              to="/incidents?severity=P4"
+              className="p-2 rounded-lg border flex items-center justify-between transition-opacity hover:opacity-80"
+              style={{
+                background: 'hsl(200 80% 57% / 0.15)',
+                borderColor: 'hsl(200 80% 57% / 0.3)',
+                color: 'hsl(200 80% 65%)',
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="text-xs font-semibold">P4</span>
+              </div>
+              <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P4_LOW' || i.severity === 'P4').length}</span>
+            </Link>
+          </div>
         </div>
       </div>
 

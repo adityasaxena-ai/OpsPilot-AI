@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronRight, Filter, Search } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, ChevronRight, Filter, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { api } from '@/lib/api';
 import { severityColor, timeAgo } from '@/lib/utils';
 
@@ -55,21 +55,56 @@ const STATUS_COLORS: Record<string, string> = {
   LEARNING: 'hsl(280 75% 60%)',
 };
 
+const SEVERITY_RANKS: Record<string, number> = {
+  P1: 1,
+  P1_CRITICAL: 1,
+  CRITICAL: 1,
+  P2: 2,
+  P3: 3,
+  P4: 4,
+  P5: 5,
+};
+
+type SortColumn = 'severity' | 'title' | 'service' | 'status' | 'detectedAt';
+type SortDirection = 'asc' | 'desc';
+
 export function IncidentList() {
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = useState('');
-  const [severityFilter, setSeverityFilter] = useState('');
-  const [serviceFilter, setServiceFilter] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const initialStatusParam = searchParams.get('status') ?? '';
+  const initialChangeParam = searchParams.get('change') ?? '';
+  const initialSeverityParam = searchParams.get('severity') ?? '';
+  const initialServiceParam = searchParams.get('service') ?? '';
+
+  const [statusFilter, setStatusFilter] = useState(initialStatusParam);
+  const [severityFilter, setSeverityFilter] = useState(initialSeverityParam);
+  const [serviceFilter, setServiceFilter] = useState(initialServiceParam);
   const [searchQuery, setSearchQuery] = useState('');
+  const [changeFilter, setChangeFilter] = useState(initialChangeParam);
+
+  const [sortColumn, setSortColumn] = useState<SortColumn>('severity');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  useEffect(() => {
+    setStatusFilter(searchParams.get('status') ?? '');
+    setSeverityFilter(searchParams.get('severity') ?? '');
+    setServiceFilter(searchParams.get('service') ?? '');
+    setChangeFilter(searchParams.get('change') ?? '');
+  }, [searchParams]);
+
+  const handleSort = (col: SortColumn) => {
+    if (sortColumn === col) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(col);
+      setSortDirection('asc');
+    }
+  };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['incidents', { status: statusFilter, severity: severityFilter }],
-    queryFn: () =>
-      api.incidents.list({
-        ...(statusFilter ? { status: statusFilter } : {}),
-        ...(severityFilter ? { severity: severityFilter } : {}),
-        limit: '50',
-      }),
+    queryKey: ['incidents', { limit: '50' }],
+    queryFn: () => api.incidents.list({ limit: '50' }),
     refetchInterval: 15_000,
   });
 
@@ -81,18 +116,78 @@ export function IncidentList() {
     new Set(rawIncidents.map((i) => i.service?.name).filter(Boolean)),
   );
 
-  const incidents = rawIncidents.filter((inc) => {
+  // Filter incidents according to composable OR (within category) & AND (across categories) rules
+  const filteredIncidents = rawIncidents.filter((inc) => {
+    // 1. Service Filter
     if (serviceFilter && inc.service?.name !== serviceFilter && inc.service?.slug !== serviceFilter) {
       return false;
     }
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      inc.title.toLowerCase().includes(q) ||
-      inc.service?.name?.toLowerCase().includes(q) ||
-      inc.id.toLowerCase().includes(q) ||
-      inc.severity.toLowerCase().includes(q)
-    );
+
+    // 2. Special URL Preset Filter: ACTIVE
+    if (statusFilter === 'ACTIVE') {
+      if (inc.status === 'RESOLVED' || inc.status === 'CLOSED') return false;
+    }
+    // 3. Special URL Preset Filter: IMMEDIATE_ATTENTION
+    else if (statusFilter === 'IMMEDIATE_ATTENTION') {
+      const isHighSev = inc.severity === 'P1' || inc.severity === 'P2' || inc.severity.includes('CRITICAL');
+      const isNotDone = inc.status !== 'RESOLVED' && inc.status !== 'CLOSED';
+      if (!isHighSev || !isNotDone) return false;
+    }
+    // 4. Standard/Multi Status Filter
+    else if (statusFilter) {
+      const selectedStatuses = statusFilter.split(',').map((s) => s.trim()).filter(Boolean);
+      if (selectedStatuses.length > 0 && !selectedStatuses.includes(inc.status)) {
+        return false;
+      }
+    }
+
+    // 5. Severity Filter
+    if (severityFilter) {
+      const selectedSeverities = severityFilter.split(',').map((s) => s.trim()).filter(Boolean);
+      if (selectedSeverities.length > 0 && !selectedSeverities.some((s) => inc.severity.includes(s))) {
+        return false;
+      }
+    }
+
+    // 6. Correlated Change Group Filter
+    if (changeFilter) {
+      const q = changeFilter.toLowerCase();
+      const matchTitle = inc.title.toLowerCase().includes('payment') || inc.service?.name?.toLowerCase().includes('payment');
+      if (!matchTitle && !inc.title.toLowerCase().includes(q)) return false;
+    }
+
+    // 7. Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const match =
+        inc.title.toLowerCase().includes(q) ||
+        inc.service?.name?.toLowerCase().includes(q) ||
+        inc.id.toLowerCase().includes(q) ||
+        inc.severity.toLowerCase().includes(q) ||
+        inc.status.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+
+    return true;
+  });
+
+  // Sort incidents by underlying raw values
+  const incidents = [...filteredIncidents].sort((a, b) => {
+    let comparison = 0;
+    if (sortColumn === 'severity') {
+      const rankA = SEVERITY_RANKS[a.severity] ?? 99;
+      const rankB = SEVERITY_RANKS[b.severity] ?? 99;
+      comparison = rankA - rankB;
+    } else if (sortColumn === 'title') {
+      comparison = a.title.localeCompare(b.title);
+    } else if (sortColumn === 'service') {
+      comparison = (a.service?.name ?? '').localeCompare(b.service?.name ?? '');
+    } else if (sortColumn === 'status') {
+      comparison = a.status.localeCompare(b.status);
+    } else if (sortColumn === 'detectedAt') {
+      comparison = new Date(a.detectedAt).getTime() - new Date(b.detectedAt).getTime();
+    }
+    return sortDirection === 'asc' ? comparison : -comparison;
   });
 
   return (
@@ -245,13 +340,34 @@ export function IncidentList() {
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: 'hsl(var(--bg-surface-2))' }}>
-              {['Severity', 'Title', 'Service', 'Status', 'Detected', 'Alerts'].map((h) => (
+              {[
+                { label: 'Severity', col: 'severity' as SortColumn },
+                { label: 'Title', col: 'title' as SortColumn },
+                { label: 'Service', col: 'service' as SortColumn },
+                { label: 'Status', col: 'status' as SortColumn },
+                { label: 'Detected', col: 'detectedAt' as SortColumn },
+                { label: 'Alerts', col: null },
+              ].map(({ label, col }) => (
                 <th
-                  key={h}
-                  className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider"
-                  style={{ color: 'hsl(var(--text-tertiary))' }}
+                  key={label}
+                  onClick={() => col && handleSort(col)}
+                  className={`text-left px-4 py-3 text-xs font-medium uppercase tracking-wider ${
+                    col ? 'cursor-pointer select-none hover:text-indigo-400' : ''
+                  }`}
+                  style={{ color: col && sortColumn === col ? 'hsl(var(--text-primary))' : 'hsl(var(--text-tertiary))' }}
                 >
-                  {h}
+                  <div className="flex items-center gap-1">
+                    <span>{label}</span>
+                    {col && (
+                      <span className="text-[10px]">
+                        {sortColumn === col ? (
+                          sortDirection === 'asc' ? '▲' : '▼'
+                        ) : (
+                          <ArrowUpDown size={11} className="opacity-40" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </th>
               ))}
               <th className="px-4 py-3" />

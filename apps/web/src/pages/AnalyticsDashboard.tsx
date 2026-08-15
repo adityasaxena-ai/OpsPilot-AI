@@ -95,9 +95,9 @@ export function AnalyticsDashboard() {
 
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-        <KPI label="MTTD" value={overview?.mttdSeconds ? formatDuration(overview.mttdSeconds) : '—'} sub="detectedAt - createdAt" />
-        <KPI label="MTTA" value={overview?.mttaSeconds ? formatDuration(overview.mttaSeconds) : '—'} sub="triagedAt - detectedAt" />
-        <KPI label="MTTR" value={overview?.mttrSeconds ? formatDuration(overview.mttrSeconds) : '—'} sub="resolvedAt - detectedAt (resolved only)" />
+        <KPI label="MTTD" value={overview?.mttdSeconds ? formatDuration(overview.mttdSeconds) : '—'} sub="Detection Time - Creation Time" />
+        <KPI label="MTTA" value={overview?.mttaSeconds ? formatDuration(overview.mttaSeconds) : '—'} sub="Triage Time - Detection Time" />
+        <KPI label="MTTR" value={overview?.mttrSeconds ? formatDuration(overview.mttrSeconds) : '—'} sub="Resolution Time - Detection Time (resolved only)" />
         <KPI label="SLO Compliance" value={overview?.sloCompliancePercent != null ? `${overview.sloCompliancePercent}%` : '—'} sub="target: 99.0%" />
         <KPI label="Hours Saved" value={automation?.estimatedHoursSaved != null ? `${automation.estimatedHoursSaved.toFixed(0)}h` : '—'} sub="via AI automation" />
       </div>

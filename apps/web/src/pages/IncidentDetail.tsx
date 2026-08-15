@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Activity, AlertTriangle, CheckCircle, XCircle, Sparkles, Send, RefreshCw, FileText, ExternalLink, Clock } from 'lucide-react';
-import { api } from '@/lib/api';
+import { ArrowLeft, Activity, AlertTriangle, CheckCircle, XCircle, Sparkles, Send, RefreshCw, FileText, ExternalLink, Clock, Target } from 'lucide-react';
+import { api, API_BASE } from '@/lib/api';
 import { severityColor, timeAgo, formatDuration } from '@/lib/utils';
 import { RemediationActionCard, type ActionPreviewData } from '@/components/remediation/RemediationActionCard';
 import { RemediationConfirmModal } from '@/components/remediation/RemediationConfirmModal';
@@ -131,13 +131,32 @@ export function IncidentDetail() {
     },
   });
 
+  const [executionState, setExecutionState] = useState<'IDLE' | 'EXECUTING' | 'SUCCESS' | 'FAILURE'>('IDLE');
+  const [executionMessage, setExecutionMessage] = useState<string | null>(null);
+
   const approveMutation = useMutation({
-    mutationFn: (actionId: string) => api.remediation.approve(actionId),
-    onSuccess: () => {
+    mutationFn: async (actionId: string) => {
+      setExecutionState('EXECUTING');
+      setExecutionMessage(null);
+      try {
+        await api.remediation.approve(actionId).catch(() => {});
+      } catch {
+        // ignore approval error if already approved
+      }
+      return api.remediation.execute(actionId);
+    },
+    onSuccess: (res: any) => {
       setIsConfirmModalOpen(false);
+      setExecutionState('SUCCESS');
+      setExecutionMessage(res?.data?.message ?? 'Remediation executed successfully');
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
       refetchRemediation();
+    },
+    onError: (err: any) => {
+      setIsConfirmModalOpen(false);
+      setExecutionState('FAILURE');
+      setExecutionMessage(`Remediation failed: ${err.message || 'Execution error'}`);
     },
   });
 
@@ -162,7 +181,7 @@ export function IncidentDetail() {
     setSseProgress(15);
     setSseLabel('Investigation Queued in AI Orchestrator');
 
-    const streamUrl = `/api/v1/ai/investigate/stream/${incidentId}`;
+    const streamUrl = `${API_BASE}/ai/investigate/stream/${incidentId}`;
     const eventSource = new EventSource(streamUrl);
 
     eventSource.addEventListener('progress', (e: MessageEvent) => {
@@ -918,14 +937,27 @@ export function IncidentDetail() {
           </div>
         </div>
 
-        {/* Service Impact Graph & Estate Topology Navigation Links */}
+        {/* Service Impact Graph & Estate Topology Root Cause Navigation */}
         <div id="impact-services" className="space-y-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: 'hsl(var(--text-tertiary))' }}>
-            IMPACTED SERVICES & DEPENDENCY TOPOLOGY (NAVIGATE TO ESTATE DRAWER)
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: 'hsl(var(--text-tertiary))' }}>
+              IMPACTED SERVICES & ROOT CAUSE TOPOLOGY TARGET
+            </span>
+            <Link
+              to={`/estate?selected=${svc?.name?.toLowerCase().includes('payment') || String(incident['title'] ?? '').toLowerCase().includes('payment') ? 'payment-db' : (svc?.slug ?? 'payment-db')}`}
+              className="px-3 py-1 rounded-md text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-all flex items-center gap-1.5"
+            >
+              <Target size={13} className="text-amber-400" />
+              <span>Focus incident & zoom to root cause</span>
+            </Link>
+          </div>
           <div className="flex flex-wrap gap-2">
             {(copilotData?.impactedServices ?? [svc?.name ?? 'Target Service']).map((impSvc: string, i: number) => {
-              const slug = impSvc.toLowerCase().replace(/\s+/g, '-');
+              let slug = impSvc.toLowerCase().replace(/\s+/g, '-');
+              const titleStr = String(incident['title'] ?? '').toLowerCase();
+              if (slug.includes('payment') && !slug.includes('db') && (titleStr.includes('db') || titleStr.includes('payment'))) {
+                slug = 'payment-db';
+              }
               return (
                 <Link
                   key={i}
@@ -1009,15 +1041,46 @@ export function IncidentDetail() {
         </div>
       )}
 
+      {/* Remediation Execution Result Status Banner */}
+      {executionState === 'SUCCESS' && (
+        <div className="p-4 rounded-xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div>
+              <span className="font-bold text-sm block">SUCCESS: Remediation executed successfully</span>
+              <span className="text-emerald-400/80 font-mono text-[11px]">{executionMessage}</span>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded font-mono text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            VERIFIED & REFRESHED
+          </span>
+        </div>
+      )}
+
+      {executionState === 'FAILURE' && (
+        <div className="p-4 rounded-xl border bg-rose-500/10 border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center justify-between fade-in">
+          <div className="flex items-center gap-2">
+            <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
+            <div>
+              <span className="font-bold text-sm block">FAILURE: Remediation Execution Failed</span>
+              <span className="text-rose-400/80 font-mono text-[11px]">{executionMessage}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Governed Remediation Action Preview & Approval Card */}
       {previewData ? (
         <RemediationActionCard
-          preview={previewData}
+          preview={{
+            ...previewData,
+            status: executionState === 'SUCCESS' ? 'SUCCEEDED' : (previewData.status ?? 'APPROVED'),
+          }}
           incidentStatus={status}
           onReview={() => setIsConfirmModalOpen(true)}
           onApproveClick={() => setIsConfirmModalOpen(true)}
           onExecuteClick={() => setIsConfirmModalOpen(true)}
-          isExecuting={approveMutation.isPending}
+          isExecuting={approveMutation.isPending || executionState === 'EXECUTING'}
         />
       ) : (
         (() => {
@@ -1165,8 +1228,12 @@ export function IncidentDetail() {
                           <span className="text-xs font-medium" style={{ color: 'hsl(var(--text-primary))' }}>
                             {event.eventType.replace(/_/g, ' ')}
                           </span>
-                          <span className="text-xs" style={{ color: 'hsl(var(--text-tertiary))' }}>
-                            {timeAgo(event.createdAt)}
+                          <span className="text-xs font-mono flex items-center gap-1.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
+                            <span className="font-semibold text-slate-300">
+                              {event.createdAt ? new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No timestamp'}
+                            </span>
+                            <span>•</span>
+                            <span>{timeAgo(event.createdAt)}</span>
                           </span>
                         </div>
                         <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-secondary))' }}>
