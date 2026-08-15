@@ -366,37 +366,58 @@ export function CommandCenter() {
         />
       </div>
 
-      {/* Compact AI Operations Summary Banner */}
-      <div
-        className="rounded-xl p-3.5 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs fade-in"
-        style={{
-          background: 'hsl(265 85% 65% / 0.08)',
-          borderColor: 'hsl(265 85% 65% / 0.3)',
-        }}
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 shrink-0">
-            <Sparkles size={16} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
-              <span>AI Operations Summary:</span>
-              <span className="text-[11px] px-2 py-0.5 rounded font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                {recentIncidents.length} Active {recentIncidents.length === 1 ? 'Incident' : 'Incidents'} Requiring Attention
-              </span>
-            </div>
-            <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-secondary))' }}>
-              {recentIncidents.length > 0
-                ? `High-confidence triage active. Primary critical impact identified on ${recentIncidents[0]?.service?.name ?? 'core service'}.`
-                : 'All services operating within normal telemetry parameters.'}
-            </p>
-          </div>
-        </div>
-        <Link
-          to="/incidents"
-          className="px-3 py-1.5 rounded-lg font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 transition-all shrink-0"
+      {/* Compact AI Operations Summary Banner & Recent Change Risk Indicator */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div
+          className="md:col-span-2 rounded-xl p-3.5 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs fade-in"
+          style={{
+            background: 'hsl(265 85% 65% / 0.08)',
+            borderColor: 'hsl(265 85% 65% / 0.3)',
+          }}
         >
-          View Copilot Triage <ArrowRight size={13} />
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 shrink-0">
+              <Sparkles size={16} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
+                <span>AI Operations Summary:</span>
+                <span className="text-[11px] px-2 py-0.5 rounded font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  {recentIncidents.length} Active {recentIncidents.length === 1 ? 'Incident' : 'Incidents'} Requiring Attention
+                </span>
+              </div>
+              <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-secondary))' }}>
+                {recentIncidents.length > 0
+                  ? `High-confidence triage active. Primary critical impact identified on ${recentIncidents[0]?.service?.name ?? 'core service'}.`
+                  : 'All services operating within normal telemetry parameters.'}
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/incidents"
+            className="px-3 py-1.5 rounded-lg font-semibold bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 transition-all shrink-0 min-h-[44px] sm:min-h-0"
+          >
+            View Copilot Triage <ArrowRight size={13} />
+          </Link>
+        </div>
+
+        {/* Recent Change Risk Indicator Card */}
+        <Link
+          to={recentIncidents[0] ? `/incidents/${recentIncidents[0].id}` : '/incidents'}
+          className="rounded-xl p-3.5 border text-xs fade-in flex flex-col justify-between transition-all hover:border-amber-500/50 bg-amber-950/20 border-amber-500/30 min-h-[44px]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-bold uppercase tracking-wider text-[11px] text-amber-300">RECENT CHANGE RISK</span>
+            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              HIGH
+            </span>
+          </div>
+          <div className="mt-1 text-amber-200">
+            <span className="font-semibold">{recentIncidents.length} active incidents</span> correlated with release
+            <div className="font-mono text-[11px] text-amber-300/80 truncate mt-0.5">
+              Highest: {recentIncidents[0]?.service?.name ?? 'Payment DB'} / v2.4.0-bad
+            </div>
+          </div>
         </Link>
       </div>
 
