@@ -10,14 +10,17 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
     const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const [
-      activeIncidents,
+      activeIncidentsList,
       resolvedToday,
       alertsToday,
       incidentsWithLifecycle,
       totalIncidents,
       aiTriagedIncidents,
     ] = await Promise.all([
-      db.incident.count({ where: { status: { notIn: ['RESOLVED', 'CLOSED', 'FAILED'] } } }),
+      db.incident.findMany({
+        where: { status: { notIn: ['RESOLVED', 'CLOSED', 'FAILED'] } },
+        select: { severity: true },
+      }),
       db.incident.count({ where: { status: { in: ['RESOLVED', 'CLOSED'] }, resolvedAt: { gte: startOfDay } } }),
       db.alert.count({ where: { createdAt: { gte: startOfDay } } }),
       db.incident.findMany({
@@ -36,6 +39,14 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
       db.incident.count({ where: { createdAt: { gte: last30Days } } }),
       db.incident.count({ where: { aiTriageConfidence: { not: null }, createdAt: { gte: last30Days } } }),
     ]);
+
+    const activeIncidents = activeIncidentsList.length;
+    const activeSeverityBreakdown = {
+      P1: activeIncidentsList.filter((i) => String(i.severity).includes('P1') || String(i.severity).includes('CRITICAL')).length,
+      P2: activeIncidentsList.filter((i) => String(i.severity).includes('P2') || String(i.severity).includes('HIGH')).length,
+      P3: activeIncidentsList.filter((i) => String(i.severity).includes('P3') || String(i.severity).includes('MEDIUM')).length,
+      P4: activeIncidentsList.filter((i) => String(i.severity).includes('P4') || String(i.severity).includes('LOW')).length,
+    };
 
     const mttdList: number[] = [];
     const mttaList: number[] = [];
@@ -72,6 +83,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
       success: true,
       data: {
         activeIncidents,
+        activeSeverityBreakdown,
         resolvedToday,
         alertsToday,
         mttdSeconds: avg(mttdList) || 12,

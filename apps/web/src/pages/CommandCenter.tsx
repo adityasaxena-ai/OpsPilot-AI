@@ -6,6 +6,7 @@ import { severityColor, timeAgo, formatDuration } from '@/lib/utils';
 
 interface AnalyticsOverview {
   activeIncidents: number;
+  activeSeverityBreakdown?: { P1: number; P2: number; P3: number; P4: number };
   resolvedToday: number;
   alertsToday: number;
   mttdSeconds: number;
@@ -367,7 +368,40 @@ export function CommandCenter() {
         />
       </div>
 
-      {/* Single Consolidated Row Below KPIs: AI Operations Summary | Recent Change Risk | Active Severity Breakdown */}
+      {/* Row 2 KPI Grid: MTTD | MTTA | SLO Compliance | Automation Rate */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <MetricCard
+          label="MTTD"
+          value={overview?.mttdSeconds ? formatDuration(overview.mttdSeconds) : '—'}
+          icon={Activity}
+          color="hsl(48 95% 58%)"
+          sub="Mean time to detect"
+          to="/analytics"
+        />
+        <MetricCard
+          label="MTTA"
+          value={overview?.mttaSeconds ? formatDuration(overview.mttaSeconds) : '—'}
+          icon={TrendingUp}
+          color="hsl(160 60% 55%)"
+          sub="Mean time to acknowledge"
+          to="/analytics"
+        />
+        <MetricCard
+          label="SLO Compliance"
+          value={overview?.sloCompliancePercent != null ? `${overview.sloCompliancePercent}%` : '—'}
+          icon={Shield}
+          color="hsl(142 72% 45%)"
+        />
+        <MetricCard
+          label="Automation Rate"
+          value={overview?.automationRate != null ? `${overview.automationRate}%` : '—'}
+          icon={Server}
+          color="hsl(220 90% 56%)"
+          sub="AI-assisted incidents"
+        />
+      </div>
+
+      {/* Row 3 Operational Intelligence Grid: AI Operations Summary | Recent Change Risk | Active Severity Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* 1. AI Operations Summary Card */}
         <div
@@ -386,7 +420,7 @@ export function CommandCenter() {
                 <span>AI Operations Summary</span>
               </div>
               <span className="text-[11px] font-mono text-indigo-300 mt-0.5 block">
-                {recentIncidents.length} Active Incidents Requiring Attention
+                {overview?.activeIncidents ?? recentIncidents.length} Active Incidents Requiring Attention
               </span>
             </div>
           </div>
@@ -440,7 +474,7 @@ export function CommandCenter() {
           </div>
           <div className="grid grid-cols-2 gap-2 font-mono">
             <Link
-              to="/incidents?severity=P1"
+              to="/incidents?status=ACTIVE&severity=P1"
               className="p-2 rounded-lg border flex items-center justify-between transition-opacity hover:opacity-80"
               style={{
                 background: 'hsl(0 85% 60% / 0.15)',
@@ -452,10 +486,12 @@ export function CommandCenter() {
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                 <span className="text-xs font-semibold">P1</span>
               </div>
-              <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P1_CRITICAL' || i.severity === 'P1').length}</span>
+              <span className="font-bold">
+                {overview?.activeSeverityBreakdown?.P1 ?? recentIncidents.filter((i) => i.severity === 'P1_CRITICAL' || i.severity === 'P1').length}
+              </span>
             </Link>
             <Link
-              to="/incidents?severity=P2"
+              to="/incidents?status=ACTIVE&severity=P2"
               className="p-2 rounded-lg border flex items-center justify-between transition-opacity hover:opacity-80"
               style={{
                 background: 'hsl(25 95% 60% / 0.15)',
@@ -467,10 +503,12 @@ export function CommandCenter() {
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
                 <span className="text-xs font-semibold">P2</span>
               </div>
-              <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P2_HIGH' || i.severity === 'P2').length}</span>
+              <span className="font-bold">
+                {overview?.activeSeverityBreakdown?.P2 ?? recentIncidents.filter((i) => i.severity === 'P2_HIGH' || i.severity === 'P2').length}
+              </span>
             </Link>
             <Link
-              to="/incidents?severity=P3"
+              to="/incidents?status=ACTIVE&severity=P3"
               className="p-2 rounded-lg border flex items-center justify-between transition-opacity hover:opacity-80"
               style={{
                 background: 'hsl(48 95% 58% / 0.15)',
@@ -482,10 +520,12 @@ export function CommandCenter() {
                 <span className="w-2 h-2 rounded-full bg-yellow-500" />
                 <span className="text-xs font-semibold">P3</span>
               </div>
-              <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P3_MEDIUM' || i.severity === 'P3').length}</span>
+              <span className="font-bold">
+                {overview?.activeSeverityBreakdown?.P3 ?? recentIncidents.filter((i) => i.severity === 'P3_MEDIUM' || i.severity === 'P3').length}
+              </span>
             </Link>
             <Link
-              to="/incidents?severity=P4"
+              to="/incidents?status=ACTIVE&severity=P4"
               className="p-2 rounded-lg border flex items-center justify-between transition-opacity hover:opacity-80"
               style={{
                 background: 'hsl(200 80% 57% / 0.15)',
@@ -497,43 +537,12 @@ export function CommandCenter() {
                 <span className="w-2 h-2 rounded-full bg-blue-500" />
                 <span className="text-xs font-semibold">P4</span>
               </div>
-              <span className="font-bold">{recentIncidents.filter((i) => i.severity === 'P4_LOW' || i.severity === 'P4').length}</span>
+              <span className="font-bold">
+                {overview?.activeSeverityBreakdown?.P4 ?? recentIncidents.filter((i) => i.severity === 'P4_LOW' || i.severity === 'P4').length}
+              </span>
             </Link>
           </div>
         </div>
-      </div>
-
-      {/* Second row metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <MetricCard
-          label="MTTD"
-          value={overview?.mttdSeconds ? formatDuration(overview.mttdSeconds) : '—'}
-          icon={Activity}
-          color="hsl(48 95% 58%)"
-          sub="Mean time to detect"
-          to="/analytics"
-        />
-        <MetricCard
-          label="MTTA"
-          value={overview?.mttaSeconds ? formatDuration(overview.mttaSeconds) : '—'}
-          icon={TrendingUp}
-          color="hsl(160 60% 55%)"
-          sub="Mean time to acknowledge"
-          to="/analytics"
-        />
-        <MetricCard
-          label="SLO Compliance"
-          value={overview?.sloCompliancePercent != null ? `${overview.sloCompliancePercent}%` : '—'}
-          icon={Shield}
-          color="hsl(142 72% 45%)"
-        />
-        <MetricCard
-          label="Automation Rate"
-          value={overview?.automationRate != null ? `${overview.automationRate}%` : '—'}
-          icon={Server}
-          color="hsl(220 90% 56%)"
-          sub="AI-assisted incidents"
-        />
       </div>
 
       {/* Service Health + Incidents side by side */}

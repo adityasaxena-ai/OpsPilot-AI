@@ -137,6 +137,11 @@ export const api = {
       }),
     getInvestigations: (incidentId: string) =>
       request<{ success: boolean; data: unknown[] }>(`/ai/investigations/${incidentId}`),
+    summarizeTimeline: (incidentId: string) =>
+      request<{ success: boolean; data: { incidentId: string; serviceName: string; totalEvents: number; durationMinutes: number; summary: string; milestones: Array<{ timestamp: string; event: string; description: string; actor: string }> } }>('/ai/summarize-timeline', {
+        method: 'POST',
+        body: JSON.stringify({ incidentId }),
+      }),
     getCopilot: (incidentId: string) =>
       request<{ success: boolean; data: any }>(`/ai/copilot/${incidentId}`),
   },

@@ -190,6 +190,47 @@ export function IncidentList() {
     return sortDirection === 'asc' ? comparison : -comparison;
   });
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, severityFilter, serviceFilter, searchQuery, changeFilter]);
+
+  const selectedStatusList = statusFilter
+    ? statusFilter.split(',').map((s) => s.trim()).filter((s) => s && s !== 'ACTIVE' && s !== 'IMMEDIATE_ATTENTION')
+    : [];
+
+  const toggleStatusOption = (statusOption: string) => {
+    let nextList: string[] = [];
+    if (selectedStatusList.includes(statusOption)) {
+      nextList = selectedStatusList.filter((s) => s !== statusOption);
+    } else {
+      nextList = [...selectedStatusList, statusOption];
+    }
+    const nextParam = nextList.join(',');
+    setStatusFilter(nextParam);
+    const newParams = new URLSearchParams(searchParams);
+    if (nextParam) {
+      newParams.set('status', nextParam);
+    } else {
+      newParams.delete('status');
+    }
+    setSearchParams(newParams);
+  };
+
+  const clearStatusFilter = () => {
+    setStatusFilter('');
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('status');
+    setSearchParams(newParams);
+  };
+
+  const totalFilteredCount = incidents.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+  const paginatedIncidents = incidents.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <div className="space-y-4 fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -198,13 +239,11 @@ export function IncidentList() {
             Incidents
           </h1>
           <p className="text-sm mt-0.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
-            {total} total · auto-correlated from alerts
+            {total} total · showing {totalFilteredCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalFilteredCount)} of {totalFilteredCount} matching filters
           </p>
         </div>
 
-        {/* Search & Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Instant Search Input */}
+        <div className="flex flex-wrap items-center gap-2 relative">
           <div className="relative flex-1 sm:w-44">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'hsl(var(--text-tertiary))' }} />
             <input
@@ -240,21 +279,64 @@ export function IncidentList() {
             ))}
           </select>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs px-2.5 py-1.5 rounded-lg border outline-none max-w-[130px]"
-            style={{
-              background: 'hsl(var(--bg-surface))',
-              borderColor: 'hsl(var(--border))',
-              color: 'hsl(var(--text-secondary))',
-            }}
-            aria-label="Filter by Incident Status"
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s || 'All Statuses'}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <button
+              onClick={() => setIsStatusPopoverOpen(!isStatusPopoverOpen)}
+              className="text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all"
+              style={{
+                background: statusFilter ? 'hsl(265 85% 65% / 0.15)' : 'hsl(var(--bg-surface))',
+                borderColor: statusFilter ? 'hsl(265 85% 65% / 0.4)' : 'hsl(var(--border))',
+                color: statusFilter ? 'hsl(265 85% 75%)' : 'hsl(var(--text-secondary))',
+              }}
+              aria-label="Filter by Incident Status Multi-Select"
+            >
+              <span>
+                {statusFilter === 'ACTIVE'
+                  ? 'Status: Active'
+                  : statusFilter === 'IMMEDIATE_ATTENTION'
+                  ? 'Status: Attention'
+                  : selectedStatusList.length > 0
+                  ? `Status (${selectedStatusList.length})`
+                  : 'All Statuses'}
+              </span>
+              <ChevronRight size={12} className={`transition-transform ${isStatusPopoverOpen ? 'rotate-90' : ''}`} />
+            </button>
+
+            {isStatusPopoverOpen && (
+              <div
+                className="absolute right-0 top-full mt-1.5 w-60 p-3 rounded-xl border shadow-xl z-50 space-y-2 fade-in"
+                style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}
+              >
+                <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
+                  <span className="text-xs font-bold" style={{ color: 'hsl(var(--text-primary))' }}>Status Multi-Filter</span>
+                  {statusFilter && (
+                    <button onClick={clearStatusFilter} className="text-[11px] text-purple-400 hover:underline">
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                  {STATUS_OPTIONS.filter(Boolean).map((st) => {
+                    const isChecked = selectedStatusList.includes(st);
+                    return (
+                      <label key={st} className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-slate-800/50">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleStatusOption(st)}
+                          className="rounded border-slate-700 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="font-mono text-[11px]" style={{ color: STATUS_COLORS[st] ?? 'hsl(var(--text-secondary))' }}>
+                          {st}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           <select
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
@@ -273,19 +355,18 @@ export function IncidentList() {
         </div>
       </div>
 
-      {/* Mobile Card List View (sm:hidden) */}
       <div className="block sm:hidden space-y-2.5">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="p-4 rounded-xl border skeleton h-20" />
           ))
-        ) : incidents.length === 0 ? (
+        ) : paginatedIncidents.length === 0 ? (
           <div className="text-center py-12 border rounded-xl" style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}>
             <AlertTriangle size={32} className="mx-auto mb-3" style={{ color: 'hsl(var(--text-tertiary))' }} />
             <p style={{ color: 'hsl(var(--text-tertiary))' }}>No incidents found</p>
           </div>
         ) : (
-          incidents.map((inc) => (
+          paginatedIncidents.map((inc) => (
             <div
               key={inc.id}
               onClick={() => navigate(`/incidents/${inc.id}`)}
@@ -304,12 +385,12 @@ export function IncidentList() {
                   >
                     {inc.severity}
                   </span>
-                  <span className="text-xs font-medium" style={{ color: 'hsl(var(--text-secondary))' }}>
+                  <span className="text-xs font-semibold truncate max-w-[140px]" style={{ color: 'hsl(var(--text-primary))' }}>
                     {inc.service?.name}
                   </span>
                 </div>
                 <span
-                  className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                  className="text-xs px-2 py-0.5 rounded-full"
                   style={{
                     background: `${STATUS_COLORS[inc.status] ?? 'hsl(var(--text-tertiary))'}1a`,
                     color: STATUS_COLORS[inc.status] ?? 'hsl(var(--text-tertiary))',
@@ -318,13 +399,13 @@ export function IncidentList() {
                   {inc.status}
                 </span>
               </div>
-              <h3 className="text-sm font-semibold mb-1" style={{ color: 'hsl(var(--text-primary))' }}>
+              <p className="text-xs font-medium line-clamp-2" style={{ color: 'hsl(var(--text-primary))' }}>
                 {inc.title}
-              </h3>
-              <div className="flex items-center justify-between text-xs mt-2" style={{ color: 'hsl(var(--text-tertiary))' }}>
-                <span>{timeAgo(inc.detectedAt)}</span>
-                <span className="flex items-center gap-1 text-indigo-400 font-medium">
-                  Investigate <ChevronRight size={12} />
+              </p>
+              <div className="flex items-center justify-between text-[11px] mt-2 pt-2 border-t" style={{ borderColor: 'hsl(var(--border))' }}>
+                <span style={{ color: 'hsl(var(--text-tertiary))' }}>{timeAgo(inc.detectedAt)}</span>
+                <span style={{ color: 'hsl(220 90% 65%)' }} className="flex items-center gap-0.5">
+                  View Detail <ChevronRight size={12} />
                 </span>
               </div>
             </div>
@@ -332,44 +413,66 @@ export function IncidentList() {
         )}
       </div>
 
-      {/* Desktop/Tablet Table View (hidden sm:block) */}
       <div
-        className="hidden sm:block rounded-xl border overflow-x-auto"
+        className="hidden sm:block rounded-xl border overflow-hidden"
         style={{ borderColor: 'hsl(var(--border))' }}
       >
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: 'hsl(var(--bg-surface-2))' }}>
-              {[
-                { label: 'Severity', col: 'severity' as SortColumn },
-                { label: 'Title', col: 'title' as SortColumn },
-                { label: 'Service', col: 'service' as SortColumn },
-                { label: 'Status', col: 'status' as SortColumn },
-                { label: 'Detected', col: 'detectedAt' as SortColumn },
-                { label: 'Alerts', col: null },
-              ].map(({ label, col }) => (
-                <th
-                  key={label}
-                  onClick={() => col && handleSort(col)}
-                  className={`text-left px-4 py-3 text-xs font-medium uppercase tracking-wider ${
-                    col ? 'cursor-pointer select-none hover:text-indigo-400' : ''
-                  }`}
-                  style={{ color: col && sortColumn === col ? 'hsl(var(--text-primary))' : 'hsl(var(--text-tertiary))' }}
-                >
-                  <div className="flex items-center gap-1">
-                    <span>{label}</span>
-                    {col && (
-                      <span className="text-[10px]">
-                        {sortColumn === col ? (
-                          sortDirection === 'asc' ? '▲' : '▼'
-                        ) : (
-                          <ArrowUpDown size={11} className="opacity-40" />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </th>
-              ))}
+              <th
+                onClick={() => handleSort('severity')}
+                className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800/40 transition-colors"
+                style={{ color: 'hsl(var(--text-tertiary))' }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Severity</span>
+                  {sortColumn === 'severity' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('title')}
+                className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800/40 transition-colors"
+                style={{ color: 'hsl(var(--text-tertiary))' }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Title</span>
+                  {sortColumn === 'title' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('service')}
+                className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800/40 transition-colors"
+                style={{ color: 'hsl(var(--text-tertiary))' }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Service</span>
+                  {sortColumn === 'service' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('status')}
+                className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800/40 transition-colors"
+                style={{ color: 'hsl(var(--text-tertiary))' }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Status</span>
+                  {sortColumn === 'status' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('detectedAt')}
+                className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-slate-800/40 transition-colors"
+                style={{ color: 'hsl(var(--text-tertiary))' }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Detected</span>
+                  {sortColumn === 'detectedAt' ? (sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />) : <ArrowUpDown size={12} className="opacity-40" />}
+                </div>
+              </th>
+              <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider" style={{ color: 'hsl(var(--text-tertiary))' }}>
+                Alerts
+              </th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -377,26 +480,26 @@ export function IncidentList() {
             {isLoading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} style={{ borderTop: '1px solid hsl(var(--border))' }}>
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <td key={j} className="px-4 py-4">
                         <div className="skeleton h-4 w-24" />
                       </td>
                     ))}
                   </tr>
                 ))
-              : incidents.length === 0
+              : paginatedIncidents.length === 0
               ? (
                 <tr>
                   <td colSpan={7} className="text-center py-16">
                     <AlertTriangle size={32} className="mx-auto mb-3" style={{ color: 'hsl(var(--text-tertiary))' }} />
                     <p style={{ color: 'hsl(var(--text-tertiary))' }}>No incidents found</p>
                     <p className="text-xs mt-1" style={{ color: 'hsl(var(--text-tertiary))' }}>
-                      Go to Chaos Lab to inject a failure and trigger incidents
+                      Adjust filters or clear status selections
                     </p>
                   </td>
                 </tr>
               )
-              : incidents.map((inc, i) => (
+              : paginatedIncidents.map((inc, i) => (
                 <tr
                   key={inc.id}
                   onClick={() => navigate(`/incidents/${inc.id}`)}
@@ -463,6 +566,66 @@ export function IncidentList() {
               ))}
           </tbody>
         </table>
+
+        <div
+          className="p-3.5 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs"
+          style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}
+        >
+          <div className="flex items-center gap-3" style={{ color: 'hsl(var(--text-tertiary))' }}>
+            <span>
+              Showing {totalFilteredCount > 0 ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, totalFilteredCount)} of{' '}
+              <strong className="text-slate-200">{totalFilteredCount}</strong> matching incidents
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span>Per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-xs text-slate-200 outline-none"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 font-mono text-xs">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-2.5 py-1 rounded border border-slate-700 bg-slate-800 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }).map((_, idx) => {
+              const pNum = idx + 1;
+              return (
+                <button
+                  key={pNum}
+                  onClick={() => setPage(pNum)}
+                  className={`px-2.5 py-1 rounded border text-xs font-semibold ${
+                    page === pNum
+                      ? 'bg-purple-600 border-purple-500 text-white'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {pNum}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-2.5 py-1 rounded border border-slate-700 bg-slate-800 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-700"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

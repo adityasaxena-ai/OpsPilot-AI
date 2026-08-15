@@ -234,6 +234,10 @@ export function IncidentDetail() {
     },
   });
 
+  const summarizeTimelineMutation = useMutation({
+    mutationFn: () => api.ai.summarizeTimeline(id!),
+  });
+
   const handleSendMessage = () => {
     if (!chatInput.trim()) return;
     const userText = chatInput;
@@ -270,6 +274,12 @@ export function IncidentDetail() {
   const postmortem = incident['postmortem'] as Record<string, unknown> | undefined;
 
   const isResolvedOrClosed = ['RESOLVED', 'CLOSED'].includes(status);
+
+  const computedMttdSeconds = incident['mttdSeconds']
+    ? (incident['mttdSeconds'] as number)
+    : incident['detectedAt'] && incident['createdAt']
+    ? Math.max(1, Math.round((new Date(incident['detectedAt'] as string).getTime() - new Date(incident['createdAt'] as string).getTime()) / 1000))
+    : null;
 
   const computedMttrSeconds = incident['mttrSeconds']
     ? (incident['mttrSeconds'] as number)
@@ -558,7 +568,7 @@ export function IncidentDetail() {
         <div className="grid grid-cols-4 gap-4 mt-5 pt-4 border-t" style={{ borderColor: 'hsl(var(--border))' }}>
           {[
             { label: 'Detected', value: timeAgo(incident['detectedAt'] as string) },
-            { label: 'MTTD', value: incident['mttdSeconds'] ? formatDuration(incident['mttdSeconds'] as number) : '—' },
+            { label: 'MTTD', value: computedMttdSeconds ? formatDuration(computedMttdSeconds) : 'Not available' },
             { label: 'MTTR', value: isResolvedOrClosed ? (computedMttrSeconds ? formatDuration(computedMttrSeconds) : 'Resolved') : 'In progress' },
             { label: 'AI Confidence', value: incident['aiTriageConfidence'] ? `${Math.round((incident['aiTriageConfidence'] as number) * 100)}%` : '—' },
           ].map((stat) => (
@@ -1154,7 +1164,6 @@ export function IncidentDetail() {
               <span className="text-emerald-400 font-mono font-bold text-sm">142ms</span>
               <span className="text-[10px] text-slate-500 block">Threshold: &lt; 1000ms</span>
             </div>
-
             <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800">
               <span className="text-slate-400 block mb-0.5">Service Health</span>
               <span className="text-emerald-400 font-bold text-sm">HEALTHY</span>
@@ -1164,18 +1173,75 @@ export function IncidentDetail() {
         </div>
       )}
 
-      {/* Confirmation Modal */}
-      <RemediationConfirmModal
-        isOpen={isConfirmModalOpen}
-        preview={previewData}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={() => {
-          if (previewData?.actionId) {
-            approveMutation.mutate(previewData.actionId);
-          }
-        }}
-        isConfirming={approveMutation.isPending}
-      />
+        {/* Live SSE Investigation Stream Progress Banner */}
+        {isSseActive && (
+          <div className="p-3.5 rounded-lg border space-y-2.5 fade-in bg-indigo-950/30 border-indigo-500/40">
+            <div className="flex items-center justify-between text-xs font-medium text-indigo-200">
+              <span className="flex items-center gap-2">
+                <RefreshCw size={13} className="animate-spin text-indigo-400" />
+                <span>{sseLabel}</span>
+              </span>
+              <span className="font-mono text-indigo-300 font-bold">{sseProgress}%</span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full h-1.5 rounded-full bg-indigo-950 border border-indigo-500/30 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+                style={{ width: `${sseProgress}%` }}
+              />
+            </div>
+
+            {/* Step Sequence Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[10px] font-mono font-medium pt-1">
+              {[
+                { step: 'QUEUED', label: '1. Queued' },
+                { step: 'COLLECTING_EVIDENCE', label: '2. Evidence' },
+                { step: 'CORRELATING_TELEMETRY', label: '3. Telemetry' },
+                { step: 'AI_ANALYSIS', label: '4. AI Analysis' },
+                { step: 'COMPLETE', label: '5. Ready' },
+              ].map((s) => {
+                const isCurrent = sseStep === s.step;
+                const isCompleted =
+                  (s.step === 'QUEUED' && sseProgress > 15) ||
+                  (s.step === 'COLLECTING_EVIDENCE' && sseProgress > 40) ||
+                  (s.step === 'CORRELATING_TELEMETRY' && sseProgress > 70) ||
+                  (s.step === 'AI_ANALYSIS' && sseProgress > 88) ||
+                  (s.step === 'COMPLETE' && sseProgress >= 100);
+
+                return (
+                  <div
+                    key={s.step}
+                    className={`p-1 rounded text-center border truncate transition-all ${
+                      isCurrent
+                        ? 'bg-indigo-600/30 border-indigo-400 text-indigo-200 font-bold animate-pulse'
+                        : isCompleted
+                        ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-900/40 border-slate-800 text-slate-500'
+                    }`}
+                  >
+                    {s.label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* AI Timeline Summary Card (Rendered when Summarize Timeline mutation completes) */}
+        {summarizeTimelineMutation.data?.data && (
+          <div className="p-4 rounded-xl border space-y-2 bg-indigo-950/20 border-indigo-500/40 text-xs fade-in">
+            <div className="flex items-center justify-between font-bold text-indigo-300">
+              <span className="flex items-center gap-1.5">
+                <Sparkles size={14} className="text-indigo-400" /> AI Timeline Summary
+              </span>
+              <span className="font-mono text-[11px] text-slate-400">
+                Duration: {summarizeTimelineMutation.data.data.durationMinutes}m · Events: {summarizeTimelineMutation.data.data.totalEvents}
+              </span>
+            </div>
+            <p className="text-slate-300 leading-relaxed">{summarizeTimelineMutation.data.data.summary}</p>
+          </div>
+        )}
 
       {/* Main Grid: Timeline (3 cols) & Context (2 cols) */}
       <div className="grid grid-cols-5 gap-6">
@@ -1183,6 +1249,7 @@ export function IncidentDetail() {
         <div className="col-span-3 space-y-6">
           {/* Incident Timeline Card */}
           <div
+            id="incident-timeline"
             className="rounded-xl border p-5"
             style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
           >
@@ -1198,6 +1265,11 @@ export function IncidentDetail() {
               <div className="relative space-y-0">
                 {timeline.map((event, i) => {
                   const Icon = ACTOR_ICONS[event.actorType] ?? Activity;
+                  const dateStr = event.createdAt
+                    ? new Date(event.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
+                      ', ' +
+                      new Date(event.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                    : 'No timestamp';
                   return (
                     <div key={event.id} className="flex gap-3 pb-4">
                       <div className="flex flex-col items-center">
@@ -1230,7 +1302,7 @@ export function IncidentDetail() {
                           </span>
                           <span className="text-xs font-mono flex items-center gap-1.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
                             <span className="font-semibold text-slate-300">
-                              {event.createdAt ? new Date(event.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No timestamp'}
+                              {dateStr}
                             </span>
                             <span>•</span>
                             <span>{timeAgo(event.createdAt)}</span>
