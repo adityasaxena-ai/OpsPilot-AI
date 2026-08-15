@@ -719,6 +719,42 @@ export function IncidentDetail() {
           </div>
         )}
 
+        {/* Temporally Correlated Changes */}
+        {copilotData?.correlatedChanges && copilotData.correlatedChanges.length > 0 && (
+          <div className="p-3.5 rounded-lg border bg-blue-950/25 border-blue-500/40 text-xs space-y-1">
+            <span className="font-bold text-blue-300 uppercase tracking-wider block text-[11px]">
+              POTENTIAL CHANGE CORRELATION
+            </span>
+            {copilotData.correlatedChanges.map((change: string, idx: number) => (
+              <p key={idx} className="text-blue-200 font-medium leading-relaxed">
+                {change}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* Structured Investigation Pipeline Timeline */}
+        {copilotData?.investigationTimeline && copilotData.investigationTimeline.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: 'hsl(var(--text-tertiary))' }}>
+              INVESTIGATION PIPELINE STAGES
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+              {copilotData.investigationTimeline.map((stg: any, idx: number) => (
+                <div key={idx} className="p-2.5 rounded-lg border space-y-1" style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[11px]" style={{ color: 'hsl(var(--text-primary))' }}>{idx + 1}. {stg.stage}</span>
+                    <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      {stg.status}
+                    </span>
+                  </div>
+                  <p className="text-[10px] truncate" style={{ color: 'hsl(var(--text-tertiary))' }}>{stg.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Facts vs Inferences Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Confirmed Facts Card */}
@@ -767,6 +803,30 @@ export function IncidentDetail() {
           </div>
         </div>
 
+        {/* AI Confidence & Evidence Transparency */}
+        {copilotData?.confidenceBreakdown && copilotData.confidenceBreakdown.length > 0 && (
+          <div className="space-y-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: 'hsl(var(--text-tertiary))' }}>
+              AI CONFIDENCE & EVIDENCE TRANSPARENCY
+            </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {copilotData.confidenceBreakdown.map((item: any, idx: number) => (
+                <div key={idx} className="p-3 rounded-lg border space-y-1" style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}>
+                  <div className="flex items-center justify-between text-xs gap-2">
+                    <span className="font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>{item.conclusion}</span>
+                    <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                      {item.confidence}
+                    </span>
+                  </div>
+                  <p className="text-[11px]" style={{ color: 'hsl(var(--text-tertiary))' }}>
+                    <span className="font-medium text-purple-400">Supporting Evidence: </span>{item.evidence}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 2. Correlated Evidence Grid */}
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider block mb-2" style={{ color: 'hsl(var(--text-tertiary))' }}>
@@ -808,8 +868,31 @@ export function IncidentDetail() {
           </div>
         </div>
 
+        {/* Service Impact Graph & Estate Topology Navigation Links */}
+        <div id="impact-services" className="space-y-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: 'hsl(var(--text-tertiary))' }}>
+            IMPACTED SERVICES & DEPENDENCY TOPOLOGY (NAVIGATE TO ESTATE DRAWER)
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {(copilotData?.impactedServices ?? [svc?.name ?? 'Target Service']).map((impSvc: string, i: number) => {
+              const slug = impSvc.toLowerCase().replace(/\s+/g, '-');
+              return (
+                <Link
+                  key={i}
+                  to={`/estate?selected=${slug}`}
+                  className="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all hover:border-indigo-500/50 bg-indigo-500/10 text-indigo-300 border-indigo-500/30 min-h-[44px] sm:min-h-0"
+                >
+                  <Activity size={13} className="text-indigo-400" />
+                  <span>{impSvc}</span>
+                  <ExternalLink size={11} className="text-indigo-400" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
         {/* 3. Recommended SRE Next Steps */}
-        <div id="impact-services">
+        <div>
           <span className="text-[11px] font-bold uppercase tracking-wider block mb-2" style={{ color: 'hsl(var(--text-tertiary))' }}>
             RECOMMENDED SRE NEXT STEPS (READ-ONLY RECOMMENDATION)
           </span>
