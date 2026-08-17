@@ -21,8 +21,8 @@ export const simulatorRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: getScenarios() };
   });
 
-  // POST /api/v1/simulator/chaos
-  app.post('/', async (request, reply) => {
+  // POST /api/v1/simulator (or /api/v1/simulator/chaos)
+  const handleChaosInjection = async (request: any, reply: any) => {
     const result = ChaosInjectionRequestSchema.safeParse(request.body);
     if (!result.success) {
       return reply.status(400).send({
@@ -33,7 +33,10 @@ export const simulatorRoutes: FastifyPluginAsync = async (app) => {
 
     const outcome = await injectChaos(result.data);
     return reply.status(201).send({ success: true, data: outcome });
-  });
+  };
+
+  app.post('/', handleChaosInjection);
+  app.post('/chaos', handleChaosInjection);
 
   // POST /api/v1/simulator/heal
   app.post('/heal', async (request) => {

@@ -389,14 +389,65 @@ export async function injectChaos(request: ChaosInjectionRequest) {
     });
   }
 
+  // Ensure an active incident exists in PostgreSQL for this chaos injection
+  const service = await db.service.findUnique({ where: { id: request.serviceId } });
+  const scenarioConfig: Record<string, { title: string; severity: 'P1' | 'P2' | 'P3' }> = {
+    BAD_DEPLOYMENT: { title: `Bad Deployment Failure: ${service?.name ?? 'Service'}`, severity: 'P1' },
+    HIGH_CPU: { title: `High CPU Utilization Spike: ${service?.name ?? 'Service'}`, severity: 'P1' },
+    MEMORY_LEAK: { title: `Memory Leak Ramp: ${service?.name ?? 'Service'}`, severity: 'P2' },
+    DB_CONNECTION_EXHAUSTION: { title: `DB Connection Pool Exhaustion: ${service?.name ?? 'Service'}`, severity: 'P1' },
+    NETWORK_LATENCY_SPIKE: { title: `Network Latency Degradation: ${service?.name ?? 'Service'}`, severity: 'P2' },
+    DEPENDENCY_FAILURE: { title: `Upstream Dependency Failure: ${service?.name ?? 'Service'}`, severity: 'P1' },
+  };
+
+  const scInfo = scenarioConfig[request.scenario] ?? {
+    title: `Chaos Lab Failure (${request.scenario}): ${service?.name ?? 'Service'}`,
+    severity: 'P1',
+  };
+
+  let activeInc = await db.incident.findFirst({
+    where: {
+      serviceId: request.serviceId,
+      status: { notIn: ['RESOLVED', 'CLOSED'] },
+    },
+  });
+
+  if (!activeInc) {
+    const desc = `Chaos Lab injected scenario ${request.scenario} causing operational degradation on ${service?.name ?? 'service'}.`;
+    activeInc = await db.incident.create({
+      data: {
+        title: scInfo.title,
+        description: desc,
+        serviceId: request.serviceId,
+        severity: scInfo.severity as never,
+        status: 'DETECTED',
+        detectedAt: new Date(),
+      },
+    });
+
+    await db.incidentEvent.create({
+      data: {
+        incidentId: activeInc.id,
+        eventType: 'INCIDENT_CREATED',
+        actorType: 'SIMULATOR',
+        description: `Chaos Lab injected scenario ${request.scenario} causing operational degradation on ${service?.name ?? 'service'}.`,
+        createdAt: new Date(),
+      },
+    });
+  }
+
   // Immediately generate alerts (don't wait for tick)
   await checkAndEmitAlerts(request.serviceId, await db.simService.findUnique({ where: { serviceId: request.serviceId } }) as never);
 
-  console.log(`[Simulator] 🔥 Chaos injected: ${request.scenario} on ${request.serviceId}`);
+  sseEmitter.emit('alert_created', { serviceId: request.serviceId, title: scInfo.title });
+  sseEmitter.emit('topology_updated', { serviceId: request.serviceId });
+
+  console.log(`[Simulator] 🔥 Chaos injected: ${request.scenario} on ${request.serviceId} (Incident ID: ${activeInc.id})`);
 
   return {
     serviceId: request.serviceId,
     scenario: request.scenario,
+    incidentId: activeInc.id,
     injectedAt: new Date().toISOString(),
     expectedDurationSeconds: request.durationSeconds,
   };
@@ -429,6 +480,12 @@ export async function healService(serviceId: string): Promise<void> {
   await db.alert.updateMany({
     where: { serviceId, status: 'ACTIVE' },
     data: { status: 'RESOLVED' },
+  });
+
+  // Resolve active incidents for this service
+  await db.incident.updateMany({
+    where: { serviceId, status: { notIn: ['RESOLVED', 'CLOSED'] } },
+    data: { status: 'RESOLVED', resolvedAt: new Date() },
   });
 
   sseEmitter.emit('service_healed', { serviceId });

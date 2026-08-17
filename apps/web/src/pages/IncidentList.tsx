@@ -314,6 +314,22 @@ export function IncidentList() {
 
           <Filter size={14} style={{ color: 'hsl(var(--text-tertiary))' }} />
 
+          {(statusFilter || severityFilter || serviceFilter || changeFilter || searchQuery) && (
+            <button
+              onClick={() => {
+                setStatusFilter('');
+                setSeverityFilter('');
+                setServiceFilter('');
+                setChangeFilter('');
+                setSearchQuery('');
+                setSearchParams({});
+              }}
+              className="text-xs px-2.5 py-1.5 rounded-lg border bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20 transition-all font-medium flex items-center gap-1"
+            >
+              Reset Filters
+            </button>
+          )}
+
           {/* Interactive Multi-Select Service Popover */}
           <div className="relative">
             <button

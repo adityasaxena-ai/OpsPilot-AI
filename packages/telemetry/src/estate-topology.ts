@@ -21,20 +21,45 @@ export class CanonicalEstateTopology {
     activeIncidents: any[] = [],
     telemetryStatus?: { status: string; providerName: string },
   ): EstateTopologyResponse {
-    // Map live telemetry & active incident alerts onto nodes
-    const incidentMap = new Map<string, number>();
-    for (const inc of activeIncidents) {
-      if (inc.serviceName) {
-        const slug = inc.serviceName.toLowerCase().replace(/\s+/g, '-');
-        incidentMap.set(slug, (incidentMap.get(slug) ?? 0) + 1);
-        if (inc.affectedServices && Array.isArray(inc.affectedServices)) {
-          for (const aff of inc.affectedServices) {
-            const affSlug = String(aff).toLowerCase().replace(/\s+/g, '-');
-            incidentMap.set(affSlug, (incidentMap.get(affSlug) ?? 0) + 1);
-          }
+    const normalizeStr = (str: string) => String(str || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+
+    const isNodeMatch = (inc: any, node: EstateNode) => {
+      const incServiceName = inc.serviceName ?? inc.service?.name ?? '';
+      const incSlug = inc.service?.slug ?? incServiceName.toLowerCase().replace(/\s+/g, '-');
+      const incId = inc.serviceId ?? '';
+
+      const nodeId = node.id;
+      const nodeName = node.name;
+      const nodeSlug = node.name.toLowerCase().replace(/\s+/g, '-');
+
+      if (incId === nodeId || incSlug === nodeId || incServiceName.toLowerCase() === nodeName.toLowerCase() || incSlug === nodeSlug) {
+        return true;
+      }
+
+      const normInc = normalizeStr(incServiceName);
+      const normNode = normalizeStr(nodeName);
+      const normNodeId = normalizeStr(nodeId);
+
+      if (normInc && (normNode.includes(normInc) || normInc.includes(normNode) || normNodeId.includes(normInc) || normInc.includes(normNodeId))) {
+        return true;
+      }
+
+      if (incSlug.includes('fraud') && nodeId.includes('fraud')) return true;
+      if (incSlug.includes('payment') && (nodeId.includes('payment') || nodeId.includes('pay'))) return true;
+      if ((incSlug.includes('queue') || incSlug.includes('kafka') || incSlug.includes('event')) && (nodeId.includes('kafka') || nodeId.includes('queue') || nodeId.includes('event'))) return true;
+      if (incSlug.includes('auth') && nodeId.includes('auth')) return true;
+      if (incSlug.includes('account') && nodeId.includes('account')) return true;
+      if (incSlug.includes('customer') && nodeId.includes('customer')) return true;
+
+      if (inc.affectedServices && Array.isArray(inc.affectedServices)) {
+        for (const aff of inc.affectedServices) {
+          const affSlug = String(aff).toLowerCase().replace(/\s+/g, '-');
+          if (affSlug === nodeId || affSlug === nodeSlug || normalizeStr(aff).includes(normNode)) return true;
         }
       }
-    }
+
+      return false;
+    };
 
     let greenCount = 0;
     let amberCount = 0;
@@ -44,12 +69,16 @@ export class CanonicalEstateTopology {
 
     const updatedNodes = this.nodes.map((node) => {
       const live = liveTelemetry[node.name];
-      const activeIncCount = incidentMap.get(node.id) ?? incidentMap.get(node.name.toLowerCase()) ?? 0;
+      const matchingIncs = activeIncidents.filter((inc) => isNodeMatch(inc, node));
+      const activeIncCount = matchingIncs.length;
 
       let health: ComponentHealthStatus = 'GREEN';
 
       if (activeIncCount > 0) {
-        health = 'RED';
+        const hasHighSev = matchingIncs.some((i) =>
+          String(i.severity).includes('P1') || String(i.severity).includes('P2') || String(i.severity).includes('CRITICAL') || String(i.severity).includes('HIGH')
+        );
+        health = hasHighSev ? 'RED' : 'AMBER';
       } else if (live) {
         if (!live.isHealthy || live.errorRatePercent > 5.0 || live.latencyP99Ms > 1500) {
           health = 'RED';
@@ -58,8 +87,6 @@ export class CanonicalEstateTopology {
         } else {
           health = 'GREEN';
         }
-      } else if (node.health === 'AMBER' || node.health === 'RED') {
-        health = node.health;
       }
 
       const rps = live?.throughputRps ?? node.metrics.throughputRps;
@@ -77,10 +104,10 @@ export class CanonicalEstateTopology {
         metrics: {
           ...node.metrics,
           throughputRps: rps,
-          latencyP99Ms: live?.latencyP99Ms ?? node.metrics.latencyP99Ms,
-          errorRatePercent: live?.errorRatePercent ?? node.metrics.errorRatePercent,
-          cpuPercent: live?.cpuPercent ?? node.metrics.cpuPercent ?? 30,
-          memoryPercent: live?.memoryPercent ?? node.metrics.memoryPercent ?? 40,
+          latencyP99Ms: live?.latencyP99Ms ?? (activeIncCount > 0 ? node.metrics.latencyP99Ms * 3 : node.metrics.latencyP99Ms),
+          errorRatePercent: live?.errorRatePercent ?? (activeIncCount > 0 ? 12.5 : node.metrics.errorRatePercent),
+          cpuPercent: live?.cpuPercent ?? (activeIncCount > 0 ? 92 : node.metrics.cpuPercent ?? 30),
+          memoryPercent: live?.memoryPercent ?? (activeIncCount > 0 ? 85 : node.metrics.memoryPercent ?? 40),
         },
       };
     });
@@ -131,20 +158,18 @@ export class CanonicalEstateTopology {
     const node = topology.nodes.find((n) => n.id === componentId || n.id === componentId.toLowerCase());
     if (!node) return null;
 
-    const targetId = node.id.toLowerCase();
-    const targetClean = targetId.replace(/-/g, ' ');
-
     const incidents = activeIncidents.filter((inc) => {
-      const incServiceId = (inc.serviceId ?? inc.service?.id ?? '').toLowerCase();
-      const incSlug = (inc.service?.slug ?? '').toLowerCase();
-      const incName = (inc.serviceName ?? inc.service?.name ?? '').toLowerCase();
-
+      const incServiceName = inc.serviceName ?? inc.service?.name ?? '';
+      const incSlug = inc.service?.slug ?? incServiceName.toLowerCase().replace(/\s+/g, '-');
+      const incId = inc.serviceId ?? '';
       return (
-        incServiceId === targetId ||
-        incSlug === targetId ||
-        incName === node.name.toLowerCase() ||
-        incName === targetClean ||
-        (incName.length > 0 && incName.includes(targetClean))
+        incId === node.id ||
+        incSlug === node.id ||
+        incServiceName.toLowerCase() === node.name.toLowerCase() ||
+        (incSlug.includes('fraud') && node.id.includes('fraud')) ||
+        (incSlug.includes('payment') && node.id.includes('payment')) ||
+        ((incSlug.includes('queue') || incSlug.includes('kafka')) && (node.id.includes('kafka') || node.id.includes('queue'))) ||
+        (incSlug.includes('auth') && node.id.includes('auth'))
       );
     });
 

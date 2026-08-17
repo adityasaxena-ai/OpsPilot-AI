@@ -56,8 +56,8 @@ export const RemediationActionCard: React.FC<Props> = ({
   };
 
   const isResolvedOrClosed = ['RESOLVED', 'CLOSED'].includes(incidentStatus);
-  const isCompleted = isResolvedOrClosed || ['SUCCEEDED', 'COMPLETED', 'RESOLVED', 'CLOSED'].includes(preview.status);
-  const isInProgress = ['EXECUTING', 'VERIFYING'].includes(preview.status) || ['EXECUTING', 'VERIFYING', 'REMEDIATION_EXECUTED'].includes(incidentStatus);
+  const isCompleted = isResolvedOrClosed || ['SUCCEEDED', 'COMPLETED', 'RESOLVED', 'CLOSED', 'REMEDIATION_EXECUTED'].includes(preview.status) || ['REMEDIATION_EXECUTED', 'RESOLVED', 'CLOSED'].includes(incidentStatus);
+  const isInProgress = ['EXECUTING', 'VERIFYING'].includes(preview.status) || ['EXECUTING', 'VERIFYING'].includes(incidentStatus);
   const isApproved = preview.status === 'APPROVED' || incidentStatus === 'REMEDIATION_APPROVED';
 
   return (

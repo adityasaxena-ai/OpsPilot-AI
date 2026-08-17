@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Activity, AlertTriangle, CheckCircle, XCircle, Sparkles, Send, RefreshCw, FileText, ExternalLink, Clock, Target } from 'lucide-react';
+import { ArrowLeft, Activity, AlertTriangle, CheckCircle, XCircle, Sparkles, Send, RefreshCw, FileText, ExternalLink, Clock, Target, ShieldAlert } from 'lucide-react';
 import { api, API_BASE } from '@/lib/api';
 import { severityColor, timeAgo, formatDuration } from '@/lib/utils';
 import { RemediationActionCard, type ActionPreviewData } from '@/components/remediation/RemediationActionCard';
@@ -138,18 +138,18 @@ export function IncidentDetail() {
     mutationFn: async (actionId: string) => {
       setExecutionState('EXECUTING');
       setExecutionMessage(null);
-      try {
-        await api.remediation.approve(actionId).catch(() => {});
-      } catch {
-        // ignore approval error if already approved
-      }
+      const res = await api.remediation.approve(actionId).catch(() => null);
+      if (res?.data) return res;
       return api.remediation.execute(actionId);
     },
     onSuccess: (res: any) => {
       setIsConfirmModalOpen(false);
       setExecutionState('SUCCESS');
-      setExecutionMessage(res?.data?.message ?? 'Remediation executed successfully');
+      setExecutionMessage(res?.data?.execution?.message ?? res?.data?.message ?? 'Remediation executed successfully');
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
+      queryClient.invalidateQueries({ queryKey: ['copilot', id] });
+      queryClient.invalidateQueries({ queryKey: ['remediation', id] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
       refetchTimeline();
       refetchRemediation();
     },
@@ -809,6 +809,245 @@ export function IncidentDetail() {
         ) : (
           <div className="p-3 rounded-lg border text-xs bg-slate-900/40 border-slate-700/50 text-slate-400">
             No recent change evidence available.
+          </div>
+        )}
+
+        {/* Evidence-Driven RCA Hypothesis Ranking Card */}
+        {copilotData?.rcaInvestigation?.hypothesesRanking && (
+          <div className="p-4 rounded-lg border bg-purple-950/20 border-purple-500/30 text-xs space-y-3">
+            <div className="flex items-center justify-between border-b pb-2 border-purple-500/30">
+              <span className="font-bold text-purple-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <Sparkles size={14} className="text-purple-400" />
+                RCA HYPOTHESIS RANKING & EVIDENCE ANALYSIS
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                Top Hypothesis: {copilotData.rcaInvestigation.topHypothesis.confidence} Confidence ({copilotData.rcaInvestigation.topHypothesis.confidenceScore}%)
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {copilotData.rcaInvestigation.hypothesesRanking.map((hyp: any) => (
+                <div key={hyp.id} className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${hyp.rank === 1 ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50' : 'bg-slate-800 text-slate-400'}`}>
+                        RANK #{hyp.rank}
+                      </span>
+                      <span className="font-semibold text-white text-xs">{hyp.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                        {hyp.category}
+                      </span>
+                      <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${hyp.confidence === 'HIGH' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : hyp.confidence === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-slate-700 text-slate-300 border-slate-600'}`}>
+                        {hyp.confidence} ({hyp.confidenceScore}%)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] pt-1">
+                    <div className="p-2 rounded bg-emerald-950/20 border border-emerald-500/20 text-emerald-300">
+                      <div className="font-bold text-[10px] uppercase text-emerald-400 mb-1">Supporting Signals ({hyp.supportingEvidence.length})</div>
+                      <ul className="space-y-0.5 list-disc list-inside text-[10px] text-emerald-200/90">
+                        {hyp.supportingEvidence.map((s: string, idx: number) => (
+                          <li key={idx} className="truncate">{s}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="p-2 rounded bg-amber-950/20 border border-amber-500/20 text-amber-300">
+                      <div className="font-bold text-[10px] uppercase text-amber-400 mb-1">Contradicting Signals ({hyp.contradictingEvidence.length})</div>
+                      {hyp.contradictingEvidence.length > 0 ? (
+                        <ul className="space-y-0.5 list-disc list-inside text-[10px] text-amber-200/90">
+                          {hyp.contradictingEvidence.map((c: string, idx: number) => (
+                            <li key={idx} className="truncate">{c}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-[10px] text-amber-400/60 italic">None observed</span>
+                      )}
+                    </div>
+
+                    <div className="p-2 rounded bg-slate-950/40 border border-slate-700/40 text-slate-300">
+                      <div className="font-bold text-[10px] uppercase text-slate-400 mb-1">Missing Evidence ({hyp.missingEvidence.length})</div>
+                      <ul className="space-y-0.5 list-disc list-inside text-[10px] text-slate-400">
+                        {hyp.missingEvidence.map((m: string, idx: number) => (
+                          <li key={idx} className="truncate">{m}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[10px] text-purple-300/70 italic">
+              ℹ️ {copilotData.rcaInvestigation.limitationNotice}
+            </p>
+          </div>
+        )}
+
+        {/* Incident Decision Support Engine Card */}
+        {copilotData?.decisionSupport && (
+          <div className="p-4 rounded-lg border bg-blue-950/20 border-blue-500/30 text-xs space-y-4">
+            <div className="flex flex-wrap items-center justify-between border-b pb-2 border-blue-500/30 gap-2">
+              <span className="font-bold text-blue-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5 font-mono">
+                <ShieldAlert size={15} className="text-blue-400" />
+                INCIDENT DECISION SUPPORT ENGINE
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  RCA Confidence: <strong className="text-emerald-400">{copilotData.decisionSupport.rcaConfidence}</strong>
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  Decision Confidence: <strong className="text-blue-400">{copilotData.decisionSupport.decisionConfidence}</strong>
+                </span>
+                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${copilotData.decisionSupport.riskAssessment.overallRiskScore > 80 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : copilotData.decisionSupport.riskAssessment.overallRiskScore > 60 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-blue-500/20 text-blue-300 border-blue-500/40'}`}>
+                  Incident Risk: {copilotData.decisionSupport.riskAssessment.overallRiskScore}/100 ({copilotData.decisionSupport.riskAssessment.riskLevel})
+                </span>
+              </div>
+            </div>
+
+            {/* Business Impact & Risk Factor Decomposition */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Business Impact */}
+              <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block font-mono">
+                  BUSINESS IMPACT ASSESSMENT
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block uppercase">Target Service</span>
+                    <span className="font-semibold text-white truncate block">{copilotData.decisionSupport.businessImpact.serviceName} ({copilotData.decisionSupport.businessImpact.serviceTier})</span>
+                  </div>
+                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block uppercase">Error Rate</span>
+                    <span className="font-semibold text-rose-400 block">{copilotData.decisionSupport.businessImpact.errorRate}</span>
+                  </div>
+                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block uppercase">P95 Latency</span>
+                    <span className="font-semibold text-amber-400 block">{copilotData.decisionSupport.businessImpact.latencyP95}</span>
+                  </div>
+                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block uppercase">Duration</span>
+                    <span className="font-semibold text-slate-300 block">{copilotData.decisionSupport.businessImpact.durationMinutes}m active</span>
+                  </div>
+                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block uppercase">Blast Radius</span>
+                    <span className="font-semibold text-purple-300 block">{copilotData.decisionSupport.businessImpact.blastRadiusCount} Services</span>
+                  </div>
+                  <div className="p-2 rounded bg-slate-950/60 border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block uppercase">Impact Rating</span>
+                    <span className="font-bold text-rose-400 uppercase block">{copilotData.decisionSupport.businessImpact.impactAssessment}</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 pt-1">
+                  ℹ️ {copilotData.decisionSupport.businessImpact.customerImpactDescription}
+                </p>
+              </div>
+
+              {/* Deterministic Risk Breakdown */}
+              <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block font-mono flex items-center justify-between">
+                  DETERMINISTIC INCIDENT RISK CALCULATION
+                  <span className="text-blue-400 font-mono font-normal">{copilotData.decisionSupport.riskAssessment.overallRiskScore} / 100</span>
+                </span>
+                <div className="space-y-1.5 text-[10px]">
+                  {Object.values(copilotData.decisionSupport.riskAssessment.factors).map((f: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-1.5 rounded bg-slate-950/40 border border-slate-800/60">
+                      <span className="text-slate-300 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                        {f.name} ({f.weightPercent}% weight)
+                      </span>
+                      <span className="font-mono font-bold text-blue-300">+{f.score} / {f.maxScore}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Side-by-Side Remediation Option Comparison */}
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block font-mono">
+                REMEDIATION OPTION COMPARISON
+              </span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {copilotData.decisionSupport.remediationOptions.map((opt: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-lg border space-y-2 relative ${opt.isRecommended ? 'bg-emerald-950/30 border-emerald-500/50' : 'bg-slate-900/50 border-slate-800'}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded font-mono uppercase ${opt.isRecommended ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800 text-slate-400'}`}>
+                        {opt.isRecommended ? 'RECOMMENDED DECISION' : `OPTION #${idx + 1}`}
+                      </span>
+                      <span className="text-[9px] font-mono text-slate-400">RCA Match: {opt.rcaAlignmentScore}%</span>
+                    </div>
+
+                    <div className="font-semibold text-white text-xs">{opt.title}</div>
+
+                    <div className="grid grid-cols-2 gap-1 text-[10px]">
+                      <div className="p-1 rounded bg-slate-950/60 text-slate-300">
+                        <span className="text-slate-500 block uppercase text-[8px]">Risk</span>
+                        <span className="font-bold text-emerald-400">{opt.riskLevel} ({opt.riskScore}/100)</span>
+                      </div>
+                      <div className="p-1 rounded bg-slate-950/60 text-slate-300">
+                        <span className="text-slate-500 block uppercase text-[8px]">Recovery</span>
+                        <span className="font-bold text-blue-300">{opt.estimatedRecoverySpeed}</span>
+                      </div>
+                    </div>
+
+                    {opt.isRecommended ? (
+                      <p className="text-[10px] text-emerald-300/90 bg-emerald-950/40 p-1.5 rounded border border-emerald-500/30">
+                        ✓ {opt.recommendationReason}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-amber-300/80 bg-amber-950/30 p-1.5 rounded border border-amber-500/20">
+                        ⚠️ Why not selected: {opt.rejectionReason}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* What Would Change My Mind Signals & Safety Banner */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 block font-mono">
+                  SIGNALS THAT WOULD WEAKEN TOP HYPOTHESIS
+                </span>
+                <ul className="space-y-1 text-[10px] text-amber-200/90 list-disc list-inside">
+                  {copilotData.decisionSupport.whatWouldChangeMyMind.weakenAssessmentSignals.map((sig: string, idx: number) => (
+                    <li key={idx} className="truncate">{sig}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 block font-mono">
+                  SIGNALS THAT WOULD STRENGTHEN TOP HYPOTHESIS
+                </span>
+                <ul className="space-y-1 text-[10px] text-emerald-200/90 list-disc list-inside">
+                  {copilotData.decisionSupport.whatWouldChangeMyMind.strengthenAssessmentSignals.map((sig: string, idx: number) => (
+                    <li key={idx} className="truncate">{sig}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Execution Safety Assessment Banner */}
+            <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-500/40 text-rose-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div className="flex items-center gap-2">
+                <ShieldAlert size={16} className="text-rose-400 shrink-0" />
+                <span>
+                  <strong>HUMAN AUTHORIZATION REQUIRED:</strong> {copilotData.decisionSupport.executionSafetyAssessment.safetyNotice}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/50 uppercase font-bold">
+                {copilotData.decisionSupport.executionSafetyAssessment.approvalRequirement}
+              </span>
+            </div>
           </div>
         )}
 
@@ -1595,6 +1834,38 @@ export function IncidentDetail() {
           </div>
         </div>
       </div>
+
+      {/* Governed Remediation Execution Confirmation Modal */}
+      <RemediationConfirmModal
+        isOpen={isConfirmModalOpen}
+        preview={previewData ?? {
+          actionId: activeAction?.['id'] as string ?? (remediationData?.data as any)?.[0]?.id ?? 'rem-fallback',
+          actionName: copilotData?.decisionSupport?.recommendedDecision?.title ?? 'Rollback Deployment',
+          serviceName: (svc?.name) ?? 'Target Service',
+          environment: 'production',
+          why: copilotData?.decisionSupport?.recommendedDecision?.whyRecommended?.[0] ?? 'RCA alignment & capacity recovery',
+          whatWillHappen: [
+            'Drain active connections on target service',
+            'Deploy previous stable tag/version',
+            'Run health verification checks',
+          ],
+          riskLevel: copilotData?.decisionSupport?.recommendedDecision?.riskScore ? (copilotData.decisionSupport.recommendedDecision.riskScore > 50 ? 'MEDIUM' : 'LOW') : 'LOW',
+          riskScore: copilotData?.decisionSupport?.recommendedDecision?.riskScore ?? 35,
+          expectedImpact: 'Restore P95 latency and HTTP success rate to baseline SLA thresholds',
+          preconditions: ['Target service health check confirmed'],
+          status: (activeAction?.['status'] as any) ?? 'AWAITING_APPROVAL',
+        }}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={() => {
+          const targetActionId = activeAction?.['id'] as string ?? previewData?.actionId ?? (remediationData?.data as any)?.[0]?.id;
+          if (targetActionId) {
+            approveMutation.mutate(targetActionId);
+          } else {
+            setIsConfirmModalOpen(false);
+          }
+        }}
+        isConfirming={approveMutation.isPending || executionState === 'EXECUTING'}
+      />
     </div>
   );
 }

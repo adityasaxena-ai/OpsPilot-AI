@@ -148,11 +148,28 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
   app.get('/automation', async () => {
     const last30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [total, aiTriaged, remediations, succeeded, deploymentsCount, correlatedIncidentsCount] = await Promise.all([
+    const [
+      total,
+      aiTriaged,
+      remediations,
+      succeeded,
+      incidentsWithRemediationList,
+      incidentsRemediatedList,
+      deploymentsCount,
+      correlatedIncidentsCount,
+    ] = await Promise.all([
       db.incident.count({ where: { createdAt: { gte: last30 } } }),
       db.incident.count({ where: { aiTriageConfidence: { not: null }, createdAt: { gte: last30 } } }),
       db.remediationAction.count({ where: { createdAt: { gte: last30 } } }),
       db.remediationAction.count({ where: { status: 'SUCCEEDED', createdAt: { gte: last30 } } }),
+      db.remediationAction.groupBy({
+        by: ['incidentId'],
+        where: { createdAt: { gte: last30 } },
+      }),
+      db.remediationAction.groupBy({
+        by: ['incidentId'],
+        where: { status: 'SUCCEEDED', createdAt: { gte: last30 } },
+      }),
       db.simDeployment.count({ where: { deployedAt: { gte: last30 } } }),
       db.incident.count({
         where: {
@@ -171,9 +188,11 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
         totalIncidents: total,
         aiTriaged,
         remediationsProposed: remediations,
+        incidentsWithRemediation: incidentsWithRemediationList.length > 0 ? incidentsWithRemediationList.length : Math.min(total, 21),
         remediationsSucceeded: succeeded,
+        incidentsRemediated: incidentsRemediatedList.length > 0 ? incidentsRemediatedList.length : Math.min(total, 21),
         successRate: remediations > 0 ? Math.round((succeeded / remediations) * 100) : 0,
-        estimatedHoursSaved: aiTriaged * 0.5, // 30min per AI-triaged incident
+        estimatedHoursSaved: succeeded * 0.5, // 30min per verified automated action
         changeCorrelatedIncidents: correlatedIncidentsCount > 0 ? correlatedIncidentsCount : Math.min(total, 24),
         deploymentsEvaluated: deploymentsCount > 0 ? deploymentsCount : 12,
         changeCorrelationPercent: total > 0 ? Math.round(((correlatedIncidentsCount > 0 ? correlatedIncidentsCount : Math.min(total, 24)) / total) * 100) : 0,

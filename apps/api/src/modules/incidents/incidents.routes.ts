@@ -64,6 +64,7 @@ export const incidentsRoutes: FastifyPluginAsync = async (app) => {
         rcaResults: { orderBy: { createdAt: 'desc' }, take: 1 },
         remediations: { orderBy: { createdAt: 'desc' } },
         approvals: { orderBy: { createdAt: 'desc' } },
+        incidentEvents: { orderBy: { createdAt: 'desc' } },
         postmortem: true,
       },
     });

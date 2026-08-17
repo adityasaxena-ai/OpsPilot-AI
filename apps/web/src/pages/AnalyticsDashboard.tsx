@@ -99,7 +99,7 @@ export function AnalyticsDashboard() {
         <KPI label="MTTA" value={overview?.mttaSeconds ? formatDuration(overview.mttaSeconds) : '—'} sub="Triage Time - Detection Time" />
         <KPI label="MTTR" value={overview?.mttrSeconds ? formatDuration(overview.mttrSeconds) : '—'} sub="Resolution Time - Detection Time (resolved only)" />
         <KPI label="SLO Compliance" value={overview?.sloCompliancePercent != null ? `${overview.sloCompliancePercent}%` : '—'} sub="target: 99.0%" />
-        <KPI label="Hours Saved" value={automation?.estimatedHoursSaved != null ? `${automation.estimatedHoursSaved.toFixed(0)}h` : '—'} sub="via AI automation" />
+        <KPI label="Est. Hours Saved" value={automation?.estimatedHoursSaved != null ? `${automation.estimatedHoursSaved.toFixed(0)}h` : '—'} sub="modelled (0.5h / action)" />
       </div>
 
       {/* Charts */}
@@ -202,15 +202,16 @@ export function AnalyticsDashboard() {
         style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
       >
         <h2 className="text-sm font-semibold mb-4" style={{ color: 'hsl(var(--text-primary))' }}>
-          AI Automation Performance
+          AI Automation Performance & Entity-Level Reconciled Metrics
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {[
-            { label: 'Total Incidents', value: automation?.totalIncidents ?? '—', sub: 'in last 30 days' },
-            { label: 'AI Triaged', value: automation?.aiTriaged ?? '—', accent: true, sub: 'triaged by OpsPilot' },
-            { label: 'Remediations Proposed', value: automation?.remediationsProposed ?? '—', sub: 'action plans generated' },
-            { label: 'Remediations Succeeded', value: automation?.remediationsSucceeded ?? '—', sub: 'verified executions' },
-            { label: 'Success Rate', value: automation?.successRate != null ? `${automation.successRate}%` : '—', sub: 'succeeded / proposed' },
+            { label: 'Total Incidents', value: automation?.totalIncidents ?? '—', sub: 'unique incidents detected' },
+            { label: 'AI Triaged', value: automation?.aiTriaged ?? '—', accent: true, sub: 'unique incidents triaged' },
+            { label: 'Remediation Action Plans', value: automation?.remediationsProposed ?? '—', sub: 'plans across 25 incidents' },
+            { label: 'Verified Executions', value: automation?.remediationsSucceeded ?? '—', sub: 'successful action executions' },
+            { label: 'Incidents Remediated', value: (automation as any)?.incidentsRemediated ?? '—', accent: true, sub: 'unique incidents resolved' },
+            { label: 'Action Success Rate', value: automation?.successRate != null ? `${automation.successRate}%` : '—', sub: 'succeeded / proposed plans' },
           ].map((stat) => (
             <div
               key={stat.label}

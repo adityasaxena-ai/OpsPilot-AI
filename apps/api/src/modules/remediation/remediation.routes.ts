@@ -113,18 +113,28 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
       });
     }
 
-    if (action.status !== 'AWAITING_APPROVAL') {
+    if (!['AWAITING_APPROVAL', 'PROPOSED'].includes(action.status)) {
       return reply.status(400).send({
         success: false,
         error: { code: 'INVALID_STATE', message: `Remediation action ${actionId} is in state ${action.status} and cannot be approved.` },
       });
     }
 
-    // Update action & approval request
-    await db.remediationAction.update({
-      where: { id: actionId },
+    // Atomic update guard for concurrent execution safety
+    const updated = await db.remediationAction.updateMany({
+      where: {
+        id: actionId,
+        status: { in: ['PROPOSED', 'AWAITING_APPROVAL'] },
+      },
       data: { status: 'APPROVED' },
     });
+
+    if (updated.count === 0) {
+      return reply.status(409).send({
+        success: false,
+        error: { code: 'CONCURRENCY_CONFLICT', message: `Remediation action ${actionId} is already in state ${action.status}` },
+      });
+    }
 
     await db.approval.updateMany({
       where: { remediationActionId: actionId, status: 'PENDING' },

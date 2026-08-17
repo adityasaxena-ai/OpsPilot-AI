@@ -4,6 +4,8 @@ import { AIOrchestrator } from '@opspilot/agents';
 import { getAIProvider } from '@opspilot/ai';
 import { db } from '../../lib/db.js';
 import { computeChangeCorrelation } from './change-correlation.service.js';
+import { buildRcaInvestigation } from './rca-engine.service.js';
+import { buildIncidentDecisionSupport } from './decision-engine.service.js';
 
 export const aiRoutes: FastifyPluginAsync = async (app) => {
   const orchestrator = new AIOrchestrator(db);
@@ -13,6 +15,11 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
     const { incidentId } = request.body;
     if (!incidentId) {
       return reply.status(400).send({ success: false, error: { code: 'MISSING_PARAM', message: 'incidentId required' } });
+    }
+
+    const inc = await db.incident.findUnique({ where: { id: incidentId } });
+    if (!inc) {
+      return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Incident not found' } });
     }
 
     try {
@@ -174,7 +181,7 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const response = await aiProvider.complete({
-      systemPrompt: `You are OpsPilot AI Copilot, an expert autonomous Site Reliability Engineer assistant. Help operators debug incidents, write runbooks, and analyze telemetry.${incidentContext}`,
+      systemPrompt: `You are OpsPilot AI Copilot, an expert autonomous Site Reliability Engineer assistant. Help operators debug incidents, write runbooks, and analyze telemetry. When asked why an incident occurred or how to investigate, structure your response using clear operational sections: Observed:, Correlated:, Supporting:, Contradicting:, Unknown:, Assessment:, Confidence:. Always base conclusions on empirical system telemetry and change data.${incidentContext}`,
       messages: [{ role: 'user', content: message }],
       temperature: 0.3,
     });
@@ -272,6 +279,57 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
     // Structured Explainable Change/Deployment Correlation Service Call
     const changeCorrelations = computeChangeCorrelation(incident, latestRca, evidenceList);
 
+    // Build Evidence-Driven RCA Investigation Result
+    const rcaInvestigation = buildRcaInvestigation(incident, changeCorrelations, evidenceList);
+
+    // Build Incident Decision Support Engine Result
+    const decisionSupport = buildIncidentDecisionSupport(incident, rcaInvestigation, changeCorrelations, evidenceList);
+
+    // Ensure persistent RemediationAction & Approval exist for this incident
+    let existingAction = await db.remediationAction.findFirst({ where: { incidentId: incident.id } });
+    if (!existingAction && incident.status !== 'RESOLVED' && incident.status !== 'CLOSED') {
+      const topAction = decisionSupport.recommendedDecision;
+      const createdAction = await db.remediationAction.create({
+        data: {
+          incidentId: incident.id,
+          actionType: 'ROLLBACK_DEPLOYMENT',
+          status: 'AWAITING_APPROVAL',
+          riskScore: topAction.riskScore ?? 91,
+          riskLevel: 'CRITICAL',
+          proposedByAi: true,
+        },
+      });
+      existingAction = createdAction;
+
+      await db.approval.create({
+        data: {
+          remediationActionId: createdAction.id,
+          incidentId: incident.id,
+          status: 'PENDING',
+          aiRecommendation: topAction.title,
+          riskSummary: `High execution risk (${topAction.riskScore}/100) requires human authorization.`,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+
+      await db.incidentEvent.create({
+        data: {
+          incidentId: incident.id,
+          eventType: 'DECISION_SUPPORT_GENERATED',
+          actorType: 'AI',
+          description: `AI Copilot generated decision support recommendation: "${topAction.title}" (Action ID: ${createdAction.id})`,
+          createdAt: new Date(),
+        },
+      });
+    }
+
+    if (existingAction) {
+      decisionSupport.recommendedDecision.actionId = existingAction.id;
+      if (decisionSupport.remediationOptions?.[0]) {
+        decisionSupport.remediationOptions[0].actionId = existingAction.id;
+      }
+    }
+
     const correlatedChanges = changeCorrelations.map(
       (c) => `${c.changeDescription} occurred ${c.minutesBeforeDetection} minutes before detection on ${c.affectedService} (Correlation Strength: ${c.correlationStrength} ${c.correlationScore}%).`
     );
@@ -345,13 +403,15 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
         inferences,
         evidence: evidenceList,
         impactedServices,
-        recommendedActions,
+        recommendedActions: rcaInvestigation.recommendedNextSteps,
         whySeverityExplanation: isP1 ? whySeverityExplanation : whySeverityExplanation.slice(0, 2),
         changeCorrelations,
         correlatedChanges,
         confidenceBreakdown,
         investigationTimeline,
         timelineHighlights,
+        rcaInvestigation,
+        decisionSupport,
         timeline: incident.incidentEvents,
       },
     };

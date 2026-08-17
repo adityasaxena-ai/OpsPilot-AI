@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Zap, CheckCircle, AlertTriangle, Play, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -22,6 +22,7 @@ interface SimService {
 }
 
 export function ChaosLab() {
+  const queryClient = useQueryClient();
   const [selectedService, setSelectedService] = useState('');
   const [selectedScenario, setSelectedScenario] = useState('');
   const [lastResult, setLastResult] = useState<string | null>(null);
@@ -41,7 +42,10 @@ export function ChaosLab() {
     mutationFn: () =>
       api.simulator.injectChaos({ serviceId: selectedService, scenario: selectedScenario, durationSeconds: 300 }),
     onSuccess: (data) => {
-      setLastResult(`✅ Chaos injected: ${selectedScenario} on service. Alerts will be generated within 5 seconds.`);
+      setLastResult(`✅ Chaos injected: ${selectedScenario} on service. Active incident created in DB.`);
+      queryClient.invalidateQueries({ queryKey: ['simulator'] });
+      queryClient.invalidateQueries({ queryKey: ['topology'] });
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
       refetchStatus();
     },
     onError: (err: Error) => {
@@ -53,6 +57,9 @@ export function ChaosLab() {
     mutationFn: (serviceId?: string) => api.simulator.heal(serviceId),
     onSuccess: () => {
       setLastResult('✅ Service(s) healed — alerts resolved, metrics restored');
+      queryClient.invalidateQueries({ queryKey: ['simulator'] });
+      queryClient.invalidateQueries({ queryKey: ['topology'] });
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
       refetchStatus();
     },
   });

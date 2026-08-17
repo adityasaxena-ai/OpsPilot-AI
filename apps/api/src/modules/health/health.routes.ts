@@ -23,7 +23,8 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
     const isHealthy = dbStatus === 'ok' && redisStatus === 'ok';
 
     return reply.status(isHealthy ? 200 : 503).send({
-      status: isHealthy ? 'healthy' : 'degraded',
+      status: isHealthy ? 'ok' : 'degraded',
+      health: isHealthy ? 'healthy' : 'degraded',
       version: '0.1.0',
       timestamp: new Date().toISOString(),
       dependencies: {
