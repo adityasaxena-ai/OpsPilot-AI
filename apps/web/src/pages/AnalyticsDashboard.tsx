@@ -143,9 +143,14 @@ export function AnalyticsDashboard() {
           className="rounded-xl border p-5"
           style={{ background: 'hsl(var(--bg-surface))', borderColor: 'hsl(var(--border))' }}
         >
-          <h2 className="text-sm font-semibold mb-4" style={{ color: 'hsl(var(--text-primary))' }}>
-            By Severity
-          </h2>
+          <div>
+            <h2 className="text-sm font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>
+              By Severity
+            </h2>
+            <p className="text-[11px] mb-3" style={{ color: 'hsl(var(--text-tertiary))' }}>
+              All Incidents · Last 30 Days
+            </p>
+          </div>
           {severityData.every((d) => d.value === 0) ? (
             <div className="flex items-center justify-center h-40">
               <p className="text-xs" style={{ color: 'hsl(var(--text-tertiary))' }}>No data</p>
