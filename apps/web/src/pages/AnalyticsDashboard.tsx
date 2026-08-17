@@ -206,22 +206,27 @@ export function AnalyticsDashboard() {
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {[
-            { label: 'Total Incidents', value: automation?.totalIncidents ?? '—' },
-            { label: 'AI Triaged', value: automation?.aiTriaged ?? '—', accent: true },
-            { label: 'Remediations Proposed', value: automation?.remediationsProposed ?? '—' },
-            { label: 'Remediations Succeeded', value: automation?.remediationsSucceeded ?? '—' },
-            { label: 'Success Rate', value: automation?.successRate != null ? `${automation.successRate}%` : '—' },
+            { label: 'Total Incidents', value: automation?.totalIncidents ?? '—', sub: 'in last 30 days' },
+            { label: 'AI Triaged', value: automation?.aiTriaged ?? '—', accent: true, sub: 'triaged by OpsPilot' },
+            { label: 'Remediations Proposed', value: automation?.remediationsProposed ?? '—', sub: 'action plans generated' },
+            { label: 'Remediations Succeeded', value: automation?.remediationsSucceeded ?? '—', sub: 'verified executions' },
+            { label: 'Success Rate', value: automation?.successRate != null ? `${automation.successRate}%` : '—', sub: 'succeeded / proposed' },
           ].map((stat) => (
             <div
               key={stat.label}
-              className="text-center p-3 rounded-lg border"
+              className="text-center p-3 rounded-lg border flex flex-col justify-between"
               style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}
             >
-              <div className="text-xl font-bold" style={{ color: stat.accent ? 'hsl(265 85% 65%)' : 'hsl(var(--text-primary))' }}>
-                {stat.value}
+              <div>
+                <div className="text-xl font-bold" style={{ color: stat.accent ? 'hsl(265 85% 65%)' : 'hsl(var(--text-primary))' }}>
+                  {stat.value}
+                </div>
+                <div className="text-xs font-medium mt-0.5" style={{ color: 'hsl(var(--text-secondary))' }}>
+                  {stat.label}
+                </div>
               </div>
-              <div className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
-                {stat.label}
+              <div className="text-[10px] mt-1" style={{ color: 'hsl(var(--text-tertiary))' }}>
+                {stat.sub}
               </div>
             </div>
           ))}
