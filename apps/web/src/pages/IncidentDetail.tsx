@@ -753,7 +753,7 @@ export function IncidentDetail() {
           <div className="p-4 rounded-lg border bg-blue-950/25 border-blue-500/40 text-xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2 border-blue-500/30">
               <span className="font-bold text-blue-300 uppercase tracking-wider text-[11px]">
-                POTENTIAL CHANGE / DEPLOYMENT CORRELATION
+                CHANGE & DEPLOYMENT CORRELATION INTELLIGENCE
               </span>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40">
                 Correlation Strength: {copilotData.changeCorrelations[0]?.correlationStrength ?? 'HIGH'} ({copilotData.changeCorrelations[0]?.correlationScore ?? 92}%)
@@ -774,22 +774,22 @@ export function IncidentDetail() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 pt-1">
                     <div className="p-2 rounded bg-blue-950/40 border border-blue-500/20">
                       <div className="text-[10px] font-mono text-blue-300">Temporal Proximity</div>
-                      <div className="font-bold font-mono text-xs">{corr.scoreBreakdown.temporalProximity.score}/25 pts</div>
+                      <div className="font-bold font-mono text-xs">{corr.scoreBreakdown.temporalProximity.score}/{corr.scoreBreakdown.temporalProximity.maxScore ?? 30} pts</div>
                       <div className="text-[10px] text-blue-300/80 mt-0.5 truncate">{corr.scoreBreakdown.temporalProximity.reason}</div>
                     </div>
                     <div className="p-2 rounded bg-blue-950/40 border border-blue-500/20">
                       <div className="text-[10px] font-mono text-blue-300">Service Match</div>
-                      <div className="font-bold font-mono text-xs">{corr.scoreBreakdown.serviceMatch.score}/25 pts</div>
+                      <div className="font-bold font-mono text-xs">{corr.scoreBreakdown.serviceMatch.score}/{corr.scoreBreakdown.serviceMatch.maxScore ?? 35} pts</div>
                       <div className="text-[10px] text-blue-300/80 mt-0.5 truncate">{corr.scoreBreakdown.serviceMatch.reason}</div>
                     </div>
                     <div className="p-2 rounded bg-blue-950/40 border border-blue-500/20">
                       <div className="text-[10px] font-mono text-blue-300">Telemetry Degradation</div>
-                      <div className="font-bold font-mono text-xs">{corr.scoreBreakdown.telemetryDegradation.score}/25 pts</div>
+                      <div className="font-bold font-mono text-xs">{corr.scoreBreakdown.telemetryDegradation.score}/{corr.scoreBreakdown.telemetryDegradation.maxScore ?? 20} pts</div>
                       <div className="text-[10px] text-blue-300/80 mt-0.5 truncate">{corr.scoreBreakdown.telemetryDegradation.reason}</div>
                     </div>
                     <div className="p-2 rounded bg-blue-950/40 border border-blue-500/20">
-                      <div className="text-[10px] font-mono text-blue-300">RCA Alignment</div>
-                      <div className="font-bold font-mono text-xs">{corr.scoreBreakdown.rcaAlignment.score}/25 pts</div>
+                      <div className="text-[10px] font-mono text-blue-300">Severity / RCA</div>
+                      <div className="font-bold font-mono text-xs">{corr.scoreBreakdown.rcaAlignment.score}/{corr.scoreBreakdown.rcaAlignment.maxScore ?? 15} pts</div>
                       <div className="text-[10px] text-blue-300/80 mt-0.5 truncate">{corr.scoreBreakdown.rcaAlignment.reason}</div>
                     </div>
                   </div>
@@ -798,7 +798,7 @@ export function IncidentDetail() {
                 {/* Supporting Evidence & Caveats */}
                 <div className="pt-1 text-[11px] space-y-1">
                   {corr.caveats && corr.caveats.map((cav: string, i: number) => (
-                    <p key={i} className="text-amber-300 font-medium italic">
+                    <p key={i} className={`font-medium italic ${cav.includes('CONTRADICTION') || cav.includes('NO SERVICE MATCH') ? 'text-rose-300 bg-rose-950/40 p-1.5 rounded border border-rose-500/30' : 'text-amber-300'}`}>
                       ⚠️ Caveat: {cav}
                     </p>
                   ))}
