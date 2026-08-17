@@ -193,6 +193,8 @@ export function IncidentList() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isStatusPopoverOpen, setIsStatusPopoverOpen] = useState(false);
+  const [isSeverityPopoverOpen, setIsSeverityPopoverOpen] = useState(false);
+  const [isServicePopoverOpen, setIsServicePopoverOpen] = useState(false);
 
   useEffect(() => {
     setPage(1);
@@ -200,6 +202,14 @@ export function IncidentList() {
 
   const selectedStatusList = statusFilter
     ? statusFilter.split(',').map((s) => s.trim()).filter((s) => s && s !== 'ACTIVE' && s !== 'IMMEDIATE_ATTENTION')
+    : [];
+
+  const selectedSeverityList = severityFilter
+    ? severityFilter.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const selectedServiceList = serviceFilter
+    ? serviceFilter.split(',').map((s) => s.trim()).filter(Boolean)
     : [];
 
   const toggleStatusOption = (statusOption: string) => {
@@ -212,11 +222,38 @@ export function IncidentList() {
     const nextParam = nextList.join(',');
     setStatusFilter(nextParam);
     const newParams = new URLSearchParams(searchParams);
-    if (nextParam) {
-      newParams.set('status', nextParam);
+    if (nextParam) newParams.set('status', nextParam);
+    else newParams.delete('status');
+    setSearchParams(newParams);
+  };
+
+  const toggleSeverityOption = (sevOption: string) => {
+    let nextList: string[] = [];
+    if (selectedSeverityList.includes(sevOption)) {
+      nextList = selectedSeverityList.filter((s) => s !== sevOption);
     } else {
-      newParams.delete('status');
+      nextList = [...selectedSeverityList, sevOption];
     }
+    const nextParam = nextList.join(',');
+    setSeverityFilter(nextParam);
+    const newParams = new URLSearchParams(searchParams);
+    if (nextParam) newParams.set('severity', nextParam);
+    else newParams.delete('severity');
+    setSearchParams(newParams);
+  };
+
+  const toggleServiceOption = (svcOption: string) => {
+    let nextList: string[] = [];
+    if (selectedServiceList.includes(svcOption)) {
+      nextList = selectedServiceList.filter((s) => s !== svcOption);
+    } else {
+      nextList = [...selectedServiceList, svcOption];
+    }
+    const nextParam = nextList.join(',');
+    setServiceFilter(nextParam);
+    const newParams = new URLSearchParams(searchParams);
+    if (nextParam) newParams.set('service', nextParam);
+    else newParams.delete('service');
     setSearchParams(newParams);
   };
 
@@ -224,6 +261,20 @@ export function IncidentList() {
     setStatusFilter('');
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('status');
+    setSearchParams(newParams);
+  };
+
+  const clearSeverityFilter = () => {
+    setSeverityFilter('');
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('severity');
+    setSearchParams(newParams);
+  };
+
+  const clearServiceFilter = () => {
+    setServiceFilter('');
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('service');
     setSearchParams(newParams);
   };
 
@@ -262,26 +313,72 @@ export function IncidentList() {
           </div>
 
           <Filter size={14} style={{ color: 'hsl(var(--text-tertiary))' }} />
-          <select
-            value={serviceFilter}
-            onChange={(e) => setServiceFilter(e.target.value)}
-            className="text-xs px-2.5 py-1.5 rounded-lg border outline-none max-w-[130px]"
-            style={{
-              background: 'hsl(var(--bg-surface))',
-              borderColor: 'hsl(var(--border))',
-              color: 'hsl(var(--text-secondary))',
-            }}
-            aria-label="Filter by Service"
-          >
-            <option value="">All Services</option>
-            {uniqueServices.map((svc) => (
-              <option key={svc} value={svc}>{svc}</option>
-            ))}
-          </select>
 
+          {/* Interactive Multi-Select Service Popover */}
           <div className="relative">
             <button
-              onClick={() => setIsStatusPopoverOpen(!isStatusPopoverOpen)}
+              onClick={() => {
+                setIsServicePopoverOpen(!isServicePopoverOpen);
+                setIsStatusPopoverOpen(false);
+                setIsSeverityPopoverOpen(false);
+              }}
+              className="text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all"
+              style={{
+                background: serviceFilter ? 'hsl(220 90% 65% / 0.15)' : 'hsl(var(--bg-surface))',
+                borderColor: serviceFilter ? 'hsl(220 90% 65% / 0.4)' : 'hsl(var(--border))',
+                color: serviceFilter ? 'hsl(220 90% 75%)' : 'hsl(var(--text-secondary))',
+              }}
+              aria-label="Filter by Service Multi-Select"
+            >
+              <span>
+                {selectedServiceList.length > 0
+                  ? `Service (${selectedServiceList.length})`
+                  : 'All Services'}
+              </span>
+              <ChevronRight size={12} className={`transition-transform ${isServicePopoverOpen ? 'rotate-90' : ''}`} />
+            </button>
+
+            {isServicePopoverOpen && (
+              <div
+                className="absolute left-0 sm:right-0 top-full mt-1.5 w-56 p-3 rounded-xl border shadow-xl z-50 space-y-2 fade-in"
+                style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}
+              >
+                <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
+                  <span className="text-xs font-bold" style={{ color: 'hsl(var(--text-primary))' }}>Service Multi-Filter</span>
+                  {serviceFilter && (
+                    <button onClick={clearServiceFilter} className="text-[11px] text-indigo-400 hover:underline">
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                  {uniqueServices.map((svc) => {
+                    const isChecked = selectedServiceList.includes(svc);
+                    return (
+                      <label key={svc} className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-slate-800/50">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleServiceOption(svc)}
+                          className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-[11px] text-slate-200 font-medium">{svc}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Multi-Select Status Popover */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setIsStatusPopoverOpen(!isStatusPopoverOpen);
+                setIsServicePopoverOpen(false);
+                setIsSeverityPopoverOpen(false);
+              }}
               className="text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all"
               style={{
                 background: statusFilter ? 'hsl(265 85% 65% / 0.15)' : 'hsl(var(--bg-surface))',
@@ -337,21 +434,64 @@ export function IncidentList() {
             )}
           </div>
 
-          <select
-            value={severityFilter}
-            onChange={(e) => setSeverityFilter(e.target.value)}
-            className="text-xs px-2.5 py-1.5 rounded-lg border outline-none max-w-[130px]"
-            style={{
-              background: 'hsl(var(--bg-surface))',
-              borderColor: 'hsl(var(--border))',
-              color: 'hsl(var(--text-secondary))',
-            }}
-            aria-label="Filter by Incident Severity"
-          >
-            {SEVERITY_OPTIONS.map((s) => (
-              <option key={s} value={s}>{s || 'All Severities'}</option>
-            ))}
-          </select>
+          {/* Interactive Multi-Select Severity Popover */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setIsSeverityPopoverOpen(!isSeverityPopoverOpen);
+                setIsStatusPopoverOpen(false);
+                setIsServicePopoverOpen(false);
+              }}
+              className="text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all"
+              style={{
+                background: severityFilter ? 'hsl(38 92% 50% / 0.15)' : 'hsl(var(--bg-surface))',
+                borderColor: severityFilter ? 'hsl(38 92% 50% / 0.4)' : 'hsl(var(--border))',
+                color: severityFilter ? 'hsl(38 92% 60%)' : 'hsl(var(--text-secondary))',
+              }}
+              aria-label="Filter by Severity Multi-Select"
+            >
+              <span>
+                {selectedSeverityList.length > 0
+                  ? `Severity (${selectedSeverityList.length})`
+                  : 'All Severities'}
+              </span>
+              <ChevronRight size={12} className={`transition-transform ${isSeverityPopoverOpen ? 'rotate-90' : ''}`} />
+            </button>
+
+            {isSeverityPopoverOpen && (
+              <div
+                className="absolute right-0 top-full mt-1.5 w-52 p-3 rounded-xl border shadow-xl z-50 space-y-2 fade-in"
+                style={{ background: 'hsl(var(--bg-surface-2))', borderColor: 'hsl(var(--border))' }}
+              >
+                <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
+                  <span className="text-xs font-bold" style={{ color: 'hsl(var(--text-primary))' }}>Severity Multi-Filter</span>
+                  {severityFilter && (
+                    <button onClick={clearSeverityFilter} className="text-[11px] text-amber-400 hover:underline">
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                  {['P1', 'P2', 'P3', 'P4'].map((sev) => {
+                    const isChecked = selectedSeverityList.includes(sev);
+                    return (
+                      <label key={sev} className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-slate-800/50">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleSeverityOption(sev)}
+                          className="rounded border-slate-700 text-amber-500 focus:ring-amber-500"
+                        />
+                        <span className="font-mono text-[11px] font-bold" style={{ color: severityColor(sev) }}>
+                          {sev}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
