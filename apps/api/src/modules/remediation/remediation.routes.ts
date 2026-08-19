@@ -229,10 +229,28 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
     const actionId = request.params.id;
 
+    const action = await db.remediationAction.findUnique({
+      where: { id: actionId },
+      include: { incident: true },
+    });
+
+    if (!action) {
+      return reply.status(404).send({ success: false, error: { code: 'NOT_FOUND', message: 'Action not found' } });
+    }
+
+    if (action.incident && ['RESOLVED', 'CLOSED', 'FAILED', 'HEALED'].includes(action.incident.status)) {
+      return reply.status(400).send({
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: `[InvalidState] Incident ${action.incidentId} is already ${action.incident.status}. Remediation execution is prohibited.`,
+        },
+      });
+    }
+
     try {
       const operatorId = process.env.NODE_ENV === 'production' ? request.headers['x-operator-id'] as string : 'dev-user-admin';
       const execRes = await executor.executeAction(actionId, operatorId);
-      const action = await db.remediationAction.findUnique({ where: { id: actionId } });
       const verifRes = action ? await verifier.verifyRecovery(action.incidentId) : null;
 
       return { success: true, data: { execution: execRes, verification: verifRes } };

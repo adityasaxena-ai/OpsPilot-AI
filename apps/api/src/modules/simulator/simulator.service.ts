@@ -337,9 +337,23 @@ export function getScenarios(): ScenarioDefinition[] {
 }
 
 export async function getSimulatorStatus() {
-  return db.simService.findMany({
-    include: { service: { select: { id: true, name: true, slug: true, tier: true } } },
+  const activeIncidents = await db.incident.findMany({
+    where: { status: { notIn: ['RESOLVED', 'CLOSED'] } },
+    select: { serviceId: true },
+  });
+  const degradedServiceIds = new Set(activeIncidents.map((inc) => inc.serviceId).filter(Boolean));
+
+  const simServices = await db.simService.findMany({
+    include: { service: { select: { id: true, name: true, slug: true, tier: true, status: true } } },
     orderBy: { service: { tier: 'asc' } },
+  });
+
+  return simServices.map((sim) => {
+    const isDegraded = !sim.isHealthy || (sim.service?.status && sim.service.status !== 'HEALTHY') || degradedServiceIds.has(sim.serviceId);
+    return {
+      ...sim,
+      isHealthy: !isDegraded,
+    };
   });
 }
 

@@ -78,11 +78,14 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
   const targetClean = targetId.replace(/-/g, ' ');
   const componentName = (topologyNode?.name ?? node?.name ?? '').toLowerCase();
 
-  // Strict Matching Priority Order:
-  // 1. serviceId / service.id === componentId
-  // 2. service.slug === componentId
-  // 3. exact service.name === componentName or targetClean
+  const isIncidentActive = (status?: string | null): boolean => {
+    if (!status) return false;
+    return !['RESOLVED', 'CLOSED', 'FAILED', 'HEALED'].includes(String(status).toUpperCase());
+  };
+
+  // Strict Matching Priority Order (Active Incidents Only):
   const matchingIncident = allIncidents.find((inc) => {
+    if (!isIncidentActive(inc.status)) return false;
     const incServiceId = (inc.serviceId ?? inc.service?.id ?? '').toLowerCase();
     const incSlug = (inc.service?.slug ?? '').toLowerCase();
     const incName = (inc.service?.name ?? '').toLowerCase();
@@ -93,6 +96,7 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
   });
 
   const detailIncident = detail?.activeIncidents?.find((inc: any) => {
+    if (!isIncidentActive(inc.status)) return false;
     const incServiceId = (inc.serviceId ?? inc.service?.id ?? '').toLowerCase();
     const incSlug = (inc.service?.slug ?? '').toLowerCase();
     const incName = (inc.serviceName ?? inc.service?.name ?? '').toLowerCase();
@@ -104,8 +108,12 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
     );
   });
 
-  // Effective incident MUST strictly belong to this component (NO generic fallbacks)
-  const effectiveIncident = detailIncident ?? matchingIncident ?? null;
+  // Effective incident MUST strictly belong to this component AND be currently active
+  const effectiveIncident = (detailIncident && isIncidentActive(detailIncident.status))
+    ? detailIncident
+    : (matchingIncident && isIncidentActive(matchingIncident.status))
+    ? matchingIncident
+    : null;
 
   // Single Source of Truth: Topology node health overrides backend component detail health
   const health = topologyNode?.health ?? node?.health ?? 'GREEN';
@@ -343,7 +351,11 @@ export const ComponentDetailDrawer: React.FC<ComponentDetailDrawerProps> = ({
           </div>
 
           {/* Active Incidents & Investigation CTA */}
-          {(health === 'RED' || effectiveIncident || (detail?.activeIncidents && detail.activeIncidents.length > 0)) && (
+          {Boolean(
+            (health === 'RED' || health === 'AMBER' || effectiveIncident) &&
+            effectiveIncident &&
+            isIncidentActive(effectiveIncident.status)
+          ) && (
             <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2.5">
               <h3 className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center justify-between">
                 <span className="flex items-center gap-1.5">

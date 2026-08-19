@@ -67,6 +67,7 @@ export function ChaosLab() {
   const scenarios = (scenariosData?.data as Scenario[] | undefined) ?? [];
   const simServices = (statusData?.data as SimService[] | undefined) ?? [];
   const unhealthyServices = simServices.filter((s) => !s.isHealthy);
+  const degradedCount = unhealthyServices.length;
 
   return (
     <div className="space-y-6 fade-in">
@@ -81,7 +82,7 @@ export function ChaosLab() {
           </p>
         </div>
 
-        {unhealthyServices.length > 0 && (
+        {degradedCount > 0 && (
           <button
             onClick={() => healMutation.mutate(undefined)}
             disabled={healMutation.isPending}
@@ -93,7 +94,7 @@ export function ChaosLab() {
             }}
           >
             <RefreshCw size={14} />
-            Heal All Services ({unhealthyServices.length} degraded)
+            Heal All Services ({degradedCount} degraded {degradedCount === 1 ? 'service' : 'services'})
           </button>
         )}
       </div>

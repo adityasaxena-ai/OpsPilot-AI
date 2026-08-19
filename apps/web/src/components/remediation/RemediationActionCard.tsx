@@ -55,7 +55,7 @@ export const RemediationActionCard: React.FC<Props> = ({
     }
   };
 
-  const isResolvedOrClosed = ['RESOLVED', 'CLOSED'].includes(incidentStatus);
+  const isResolvedOrClosed = ['RESOLVED', 'CLOSED', 'FAILED', 'HEALED'].includes(String(incidentStatus).toUpperCase());
   const isCompleted = isResolvedOrClosed || ['SUCCEEDED', 'COMPLETED', 'RESOLVED', 'CLOSED', 'REMEDIATION_EXECUTED'].includes(preview.status) || ['REMEDIATION_EXECUTED', 'RESOLVED', 'CLOSED'].includes(incidentStatus);
   const isInProgress = ['EXECUTING', 'VERIFYING'].includes(preview.status) || ['EXECUTING', 'VERIFYING'].includes(incidentStatus);
   const isApproved = preview.status === 'APPROVED' || incidentStatus === 'REMEDIATION_APPROVED';
@@ -203,46 +203,55 @@ export const RemediationActionCard: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={onReview}
-            className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors flex items-center gap-1.5"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            Review Full Plan
-          </button>
-
-          {isCompleted ? (
-            <span className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4" />
-              {incidentStatus === 'CLOSED' ? 'Incident Closed' : 'Remediation Verified'}
+          {isResolvedOrClosed ? (
+            <span className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              Remediation Plan — Historical / Non-Actionable
             </span>
-          ) : isApproved ? (
-            <button
-              onClick={onExecuteClick ?? onApproveClick}
-              disabled={isExecuting || isInProgress}
-              className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white shadow-md shadow-emerald-950/40 transition-all flex items-center gap-1.5"
-            >
-              {isInProgress || isExecuting ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Executing & Verifying...
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  Execute Remediation Plan
-                </>
-              )}
-            </button>
           ) : (
-            <button
-              onClick={onApproveClick}
-              disabled={isExecuting || isInProgress}
-              className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white shadow-md shadow-blue-950/40 transition-all flex items-center gap-1.5"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Approve Remediation Plan
-            </button>
+            <>
+              <button
+                onClick={onReview}
+                className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors flex items-center gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Review Full Plan
+              </button>
+
+              {isCompleted ? (
+                <span className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  {incidentStatus === 'CLOSED' ? 'Incident Closed' : 'Remediation Verified'}
+                </span>
+              ) : isApproved ? (
+                <button
+                  onClick={onExecuteClick ?? onApproveClick}
+                  disabled={isExecuting || isInProgress}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white shadow-md shadow-emerald-950/40 transition-all flex items-center gap-1.5"
+                >
+                  {isInProgress || isExecuting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Executing & Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      Execute Remediation Plan
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={onApproveClick}
+                  disabled={isExecuting || isInProgress}
+                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white shadow-md shadow-blue-950/40 transition-all flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Approve Remediation Plan
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
