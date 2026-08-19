@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { RemediationExecutor } from '@opspilot/remediation';
 import { VerificationAgent } from '@opspilot/agents';
 import { db } from '../../lib/db.js';
+import { requirePermission } from '../auth/auth.middleware.js';
 
 export const remediationRoutes: FastifyPluginAsync = async (app) => {
   const executor = new RemediationExecutor(db);
@@ -84,7 +85,10 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/remediation/:id/approve — Human operator approves a pending action
-  app.post<{ Params: { id: string } }>('/:id/approve', async (request, reply) => {
+  app.post<{ Params: { id: string } }>(
+    '/:id/approve',
+    { preHandler: requirePermission('REMEDIATION_APPROVE') },
+    async (request, reply) => {
     const actionId = request.params.id;
 
     const action = await db.remediationAction.findUnique({
@@ -158,7 +162,7 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
 
     try {
       // Execute post approval
-      const operatorId = (request.headers['x-operator-id'] as string) || (process.env.NODE_ENV !== 'production' ? 'dev-user-admin' : undefined);
+      const operatorId = request.user?.subject || (request.headers['x-operator-id'] as string) || (process.env.NODE_ENV !== 'production' ? 'dev-user-admin' : undefined);
       const execRes = await executor.executeAction(actionId, operatorId);
 
       // Run recovery verification
@@ -219,7 +223,10 @@ export const remediationRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/remediation/:id/execute — Execute an approved action directly
-  app.post<{ Params: { id: string } }>('/:id/execute', async (request, reply) => {
+  app.post<{ Params: { id: string } }>(
+    '/:id/execute',
+    { preHandler: requirePermission('REMEDIATION_EXECUTE') },
+    async (request, reply) => {
     const actionId = request.params.id;
 
     try {
