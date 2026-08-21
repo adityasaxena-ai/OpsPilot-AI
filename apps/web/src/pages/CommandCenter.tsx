@@ -314,7 +314,7 @@ export function CommandCenter() {
               color: !isReplayActive && telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 60%)' : 'hsl(var(--text-secondary))',
             }}
           >
-            Mock Standby
+            Demo Simulation
           </button>
 
           <button

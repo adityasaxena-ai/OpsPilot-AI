@@ -7,7 +7,7 @@ export class MockTelemetryProvider implements TelemetryProvider {
     return {
       providerName: this.name,
       status: 'HEALTHY',
-      activeSource: 'OpsPilot Internal Telemetry Generator (Standby)',
+      activeSource: 'OpsPilot Simulated Telemetry Stream (Demo Mode)',
       isReplaying: false,
       isRecording: false,
       lastUpdated: new Date().toISOString(),
