@@ -20,7 +20,49 @@ async function syncProviderModeFromRedis(): Promise<void> {
   }
 }
 
+/**
+ * On startup: if no explicit operator preference is stored in Redis and the OTel
+ * provider is unreachable, automatically fall back to the mock provider.
+ * This ensures the application starts in a functional state in cloud environments
+ * that do not have a Prometheus/OTel Collector sidecar.
+ *
+ * Operators can always switch back via POST /api/v1/telemetry/provider.
+ */
+async function autoProbeAndFallback(): Promise<void> {
+  try {
+    const savedMode = await redis.get(REDIS_KEY);
+    // Only auto-fallback when no explicit operator preference is stored
+    if (savedMode !== null) return;
+
+    const provider = getTelemetryProvider();
+    const status = await provider.getStatus();
+
+    if (status.status === 'UNAVAILABLE') {
+      setTelemetryProviderMode('mock');
+      try {
+        await redis.set(REDIS_KEY, 'mock');
+      } catch {
+        // Redis write failure is non-fatal; in-memory mode will be used
+      }
+      console.info(
+        '[telemetry] OTel provider unreachable on startup — auto-switched to mock provider.',
+        { reason: status.details?.error ?? 'unreachable' },
+      );
+    }
+  } catch (err) {
+    // Auto-probe failure must never crash startup
+    console.warn('[telemetry] Auto-probe failed during startup (non-fatal):', err);
+  }
+}
+
 export const telemetryRoutes: FastifyPluginAsync = async (app) => {
+  // On startup: probe OTel reachability and auto-fallback to mock if unavailable
+  // and no explicit operator preference is saved. Non-blocking, fire-and-forget.
+  app.addHook('onReady', () => {
+    void autoProbeAndFallback();
+    return Promise.resolve();
+  });
+
   // GET /api/v1/telemetry/status — Returns current provider health & active source
   app.get('/status', async () => {
     await syncProviderModeFromRedis();
