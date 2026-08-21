@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import {
   getTelemetryProvider,
+  getTelemetryProviderMode,
   setTelemetryProviderMode,
   getReplayProvider,
   ProviderMode,
@@ -9,69 +10,85 @@ import { redis } from '../../lib/redis.js';
 
 const REDIS_KEY = 'opspilot:telemetry:mode';
 
-async function syncProviderModeFromRedis(): Promise<void> {
+/**
+ * Syncs the in-memory provider mode from Redis on startup / per-request.
+ * Returns the mode that was loaded (or null if nothing was saved).
+ */
+async function syncProviderModeFromRedis(): Promise<ProviderMode | null> {
   try {
     const savedMode = await redis.get(REDIS_KEY);
     if (savedMode === 'otel' || savedMode === 'mock' || savedMode === 'replay') {
       setTelemetryProviderMode(savedMode as ProviderMode);
+      return savedMode as ProviderMode;
     }
   } catch {
-    // Fallback to in-memory mode if Redis read fails
+    // Non-fatal: fall back to in-memory mode
+  }
+  return null;
+}
+
+/**
+ * Saves the current provider mode to Redis.
+ */
+async function persistProviderMode(mode: ProviderMode): Promise<void> {
+  try {
+    await redis.set(REDIS_KEY, mode);
+  } catch {
+    // Non-fatal: in-memory mode will be used
   }
 }
 
 /**
- * On startup: if no explicit operator preference is stored in Redis and the OTel
- * provider is unreachable, automatically fall back to the mock provider.
- * This ensures the application starts in a functional state in cloud environments
- * that do not have a Prometheus/OTel Collector sidecar.
+ * Returns the status of the EFFECTIVE serving provider.
  *
- * Operators can always switch back via POST /api/v1/telemetry/provider.
+ * Design contract:
+ *   - If the active provider is healthy → return its status directly.
+ *   - If the active provider is OTel but UNAVAILABLE → auto-switch to mock,
+ *     persist to Redis, and return mock's healthy status.
+ *   - If the active provider is mock or replay → return its status directly.
+ *
+ * This ensures the UI always reflects what is ACTUALLY serving telemetry,
+ * never displaying an OTel unavailability when mock is the effective provider.
  */
-async function autoProbeAndFallback(): Promise<void> {
-  try {
-    const savedMode = await redis.get(REDIS_KEY);
-    // Only auto-fallback when no explicit operator preference is stored
-    if (savedMode !== null) return;
+async function getEffectiveStatus() {
+  const provider = getTelemetryProvider();
+  const status = await provider.getStatus();
 
-    const provider = getTelemetryProvider();
-    const status = await provider.getStatus();
-
-    if (status.status === 'UNAVAILABLE') {
-      setTelemetryProviderMode('mock');
-      try {
-        await redis.set(REDIS_KEY, 'mock');
-      } catch {
-        // Redis write failure is non-fatal; in-memory mode will be used
-      }
-      console.info(
-        '[telemetry] OTel provider unreachable on startup — auto-switched to mock provider.',
-        { reason: status.details?.error ?? 'unreachable' },
-      );
-    }
-  } catch (err) {
-    // Auto-probe failure must never crash startup
-    console.warn('[telemetry] Auto-probe failed during startup (non-fatal):', err);
+  // If OTel is selected but unreachable → transparently fall back to mock
+  if (provider.name === 'otel' && status.status === 'UNAVAILABLE') {
+    console.info(
+      '[telemetry] OTel unavailable — switching effective provider to mock.',
+      { reason: status.details?.error ?? 'unreachable' },
+    );
+    const mockProvider = setTelemetryProviderMode('mock');
+    await persistProviderMode('mock');
+    return mockProvider.getStatus();
   }
+
+  return status;
 }
 
 export const telemetryRoutes: FastifyPluginAsync = async (app) => {
-  // On startup: probe OTel reachability and auto-fallback to mock if unavailable
-  // and no explicit operator preference is saved. Non-blocking, fire-and-forget.
-  app.addHook('onReady', () => {
-    void autoProbeAndFallback();
-    return Promise.resolve();
+  // On startup: sync saved provider from Redis. If OTel was saved and is
+  // unreachable, getEffectiveStatus will correct it on first request.
+  app.addHook('onReady', async () => {
+    await syncProviderModeFromRedis();
   });
 
-  // GET /api/v1/telemetry/status — Returns current provider health & active source
+  // GET /api/v1/telemetry/status
+  // Returns the status of the provider ACTUALLY serving telemetry.
+  // If OTel is configured but unreachable, auto-switches to mock and returns
+  // mock's HEALTHY status. Redis is updated so future requests stay on mock.
   app.get('/status', async () => {
     await syncProviderModeFromRedis();
-    const provider = getTelemetryProvider();
-    const status = await provider.getStatus();
-    return { success: true, data: status };
+    const effectiveStatus = await getEffectiveStatus();
+    return { success: true, data: effectiveStatus };
   });
 
-  // POST /api/v1/telemetry/provider — Switch active telemetry provider (otel, mock, replay)
+  // POST /api/v1/telemetry/provider — Explicit operator override
+  // Switches the active provider and persists to Redis.
+  // Note: setting 'otel' when OTel is unavailable will auto-correct on the
+  // next GET /status call — use this intentionally to test OTel connectivity.
   app.post<{ Body: { provider: ProviderMode } }>('/provider', async (request, reply) => {
     const { provider } = request.body ?? {};
 
@@ -82,18 +99,13 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
       });
     }
 
-    try {
-      await redis.set(REDIS_KEY, provider);
-    } catch {
-      // Ignore Redis error
-    }
-
+    await persistProviderMode(provider);
     const active = setTelemetryProviderMode(provider);
     const status = await active.getStatus();
     return { success: true, data: status };
   });
 
-  // POST /api/v1/telemetry/demo/override — Set dynamic metric override for live demo verification
+  // POST /api/v1/telemetry/demo/override — Live demo metric override
   app.post<{ Body: { serviceName: string; rps?: number; errorRate?: number; latencyP99?: number } }>(
     '/demo/override',
     async (request) => {
@@ -149,11 +161,7 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
 
   // POST /api/v1/telemetry/replay/start — Start replaying loaded recording
   app.post('/replay/start', async () => {
-    try {
-      await redis.set(REDIS_KEY, 'replay');
-    } catch {
-      // Ignore Redis error
-    }
+    await persistProviderMode('replay');
 
     const replay = getReplayProvider();
     replay.ensureRecording();

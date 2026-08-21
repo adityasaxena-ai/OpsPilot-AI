@@ -210,18 +210,18 @@ export function CommandCenter() {
         </div>
       </div>
 
-      {/* Telemetry Provider Status & Fallback Banner */}
+      {/* Telemetry Provider Status Banner */}
       <div
         className="rounded-xl p-3.5 sm:p-4 border flex flex-col sm:flex-row sm:items-center justify-between gap-3"
         style={{
           background: isReplayActive
             ? 'hsl(265 85% 65% / 0.1)'
-            : telemetryStatus?.providerName === 'otel'
-            ? telemetryStatus?.status === 'HEALTHY'
-              ? 'hsl(142 72% 45% / 0.1)'
-              : telemetryStatus?.details?.configured === false
-              ? 'hsl(38 92% 50% / 0.1)'
-              : 'hsl(0 85% 60% / 0.1)'
+            : telemetryStatus?.status === 'HEALTHY'
+            ? 'hsl(142 72% 45% / 0.1)'
+            : telemetryStatus?.status === 'DEGRADED'
+            ? 'hsl(38 92% 50% / 0.1)'
+            : telemetryStatus
+            ? 'hsl(0 85% 60% / 0.1)'
             : 'hsl(var(--bg-surface-2))',
           borderColor: 'hsl(var(--border))',
         }}
@@ -236,7 +236,7 @@ export function CommandCenter() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold" style={{ color: 'hsl(var(--text-primary))' }}>
-                Active Telemetry Source: {telemetryStatus?.activeSource ?? 'OpenTelemetry Collector'}
+                Active Telemetry Source: {telemetryStatus?.activeSource ?? 'Initializing…'}
               </span>
               <span
                 className="text-xs px-2 py-0.5 rounded-full font-medium"
@@ -245,14 +245,14 @@ export function CommandCenter() {
                     ? 'hsl(265 85% 65% / 0.15)'
                     : telemetryStatus?.status === 'HEALTHY'
                     ? 'hsl(142 72% 45% / 0.15)'
-                    : telemetryStatus?.details?.configured === false
+                    : telemetryStatus?.status === 'DEGRADED'
                     ? 'hsl(38 92% 50% / 0.15)'
                     : 'hsl(0 85% 60% / 0.15)',
                   color: isReplayActive
                     ? 'hsl(265 85% 70%)'
                     : telemetryStatus?.status === 'HEALTHY'
                     ? 'hsl(142 72% 55%)'
-                    : telemetryStatus?.details?.configured === false
+                    : telemetryStatus?.status === 'DEGRADED'
                     ? 'hsl(38 92% 60%)'
                     : 'hsl(0 85% 65%)',
                 }}
@@ -261,13 +261,15 @@ export function CommandCenter() {
                   ? 'REPLAY MODE ACTIVE'
                   : telemetryStatus?.status === 'HEALTHY'
                   ? 'HEALTHY'
-                  : telemetryStatus?.details?.configured === false
-                  ? 'NOT CONFIGURABLE'
-                  : 'UNAVAILABLE (Standby Fallback)'}
+                  : telemetryStatus?.status === 'DEGRADED'
+                  ? 'DEGRADED'
+                  : telemetryStatus
+                  ? 'UNAVAILABLE'
+                  : '—'}
               </span>
             </div>
             <p className="text-xs mt-0.5" style={{ color: 'hsl(var(--text-tertiary))' }}>
-              Normalized telemetry metrics polled continuously every 10 seconds.
+              Telemetry metrics refreshed continuously every 10 seconds.
             </p>
           </div>
         </div>
