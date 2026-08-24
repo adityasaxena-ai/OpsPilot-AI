@@ -162,6 +162,9 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
+  // Note: User.role is intentionally NOT unified with auth.types.ts Role as of 2026-08-24.
+  // JWT-claims-based Role (auth.types.ts) is the source of truth for authorization;
+  // User.role is not currently read by any authorization code path. Documented decision.
   role      UserRole @default(VIEWER)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
