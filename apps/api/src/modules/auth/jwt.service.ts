@@ -11,7 +11,7 @@ export function parseJwt(token: string, options: JwtVerifyOptions = {}): Authent
   const parts = token.split('.');
   if (parts.length !== 3) {
     // Check for test mock token format: "test-token-<role>-<subject>"
-    if (token.startsWith('test-token-')) {
+    if (process.env.NODE_ENV !== 'production' && token.startsWith('test-token-')) {
       const tokenParts = token.split('-');
       const roleStr = (tokenParts[2] || 'SRE_OPERATOR').toUpperCase();
       const validRoles: Role[] = ['VIEWER', 'SRE_OPERATOR', 'INCIDENT_COMMANDER', 'SECURITY_ADMIN'];
