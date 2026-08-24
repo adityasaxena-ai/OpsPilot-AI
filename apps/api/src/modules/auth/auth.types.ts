@@ -17,4 +17,7 @@ export type Permission =
   | 'AUDIT_VIEW'
   | 'ADMIN_CONFIGURATION';
 
+// Note: Role is intentionally NOT unified with Prisma UserRole as of 2026-08-24.
+// JWT-claims-based Role is the source of truth for authorization;
+// User.role (Prisma) is not currently read by any authorization code path. Documented decision.
 export type Role = 'VIEWER' | 'SRE_OPERATOR' | 'INCIDENT_COMMANDER' | 'SECURITY_ADMIN';

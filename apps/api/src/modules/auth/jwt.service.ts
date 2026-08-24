@@ -1,4 +1,6 @@
-import type { AuthenticatedPrincipal, Role } from './auth.types.js';
+import jwt from 'jsonwebtoken';
+import { getConfig } from '@opspilot/config';
+import type { AuthenticatedPrincipal } from './auth.types.js';
 
 export interface JwtVerifyOptions {
   issuer?: string | undefined;
@@ -8,60 +10,44 @@ export interface JwtVerifyOptions {
 export function parseJwt(token: string, options: JwtVerifyOptions = {}): AuthenticatedPrincipal | null {
   if (!token || typeof token !== 'string') return null;
 
-  const parts = token.split('.');
-  if (parts.length !== 3) {
-    // Check for test mock token format: "test-token-<role>-<subject>"
-    if (process.env.NODE_ENV !== 'production' && token.startsWith('test-token-')) {
-      const tokenParts = token.split('-');
-      const roleStr = (tokenParts[2] || 'SRE_OPERATOR').toUpperCase();
-      const validRoles: Role[] = ['VIEWER', 'SRE_OPERATOR', 'INCIDENT_COMMANDER', 'SECURITY_ADMIN'];
-      const role: Role = validRoles.includes(roleStr as Role) ? (roleStr as Role) : 'SRE_OPERATOR';
-      const subject = tokenParts.slice(3).join('-') || 'test-user';
-      return {
-        subject,
-        displayName: `Test ${role} ${subject}`,
-        roles: [role],
-        issuer: options.issuer || 'https://opspilot.auth.example.com/',
-      };
-    }
-    return null;
-  }
-
   try {
-    const payloadStr = Buffer.from(parts[1]!, 'base64url').toString('utf8');
-    const payload = JSON.parse(payloadStr);
-
-    // Check expiration (exp in seconds)
-    if (payload.exp && typeof payload.exp === 'number') {
-      const nowSec = Math.floor(Date.now() / 1000);
-      if (payload.exp < nowSec) {
-        return null; // Expired
-      }
-    }
-
-    // Check issuer if configured
-    if (options.issuer && payload.iss && payload.iss !== options.issuer) {
-      return null; // Issuer mismatch
-    }
-
-    // Check audience if configured
-    if (options.audience && payload.aud && payload.aud !== options.audience) {
-      return null; // Audience mismatch
-    }
-
-    const roles: string[] = Array.isArray(payload.roles)
-      ? payload.roles
-      : Array.isArray(payload.realm_access?.roles)
-      ? payload.realm_access.roles
-      : [payload.role || 'SRE_OPERATOR'];
-
-    return {
-      subject: payload.sub || 'unknown-user',
-      email: payload.email,
-      displayName: payload.name || payload.preferred_username || payload.sub,
-      roles,
-      issuer: payload.iss,
+    const config = getConfig();
+    const verifyOptions: jwt.VerifyOptions = {
+      algorithms: ['HS256'],
     };
+
+    if (options.issuer) {
+      verifyOptions.issuer = options.issuer;
+    }
+    if (options.audience) {
+      verifyOptions.audience = options.audience;
+    }
+
+    const payload = jwt.verify(token, config.JWT_SECRET, verifyOptions) as jwt.JwtPayload;
+
+    const roles: string[] = Array.isArray(payload['roles'])
+      ? (payload['roles'] as string[])
+      : Array.isArray((payload['realm_access'] as { roles?: string[] })?.roles)
+      ? ((payload['realm_access'] as { roles?: string[] }).roles as string[])
+      : [(payload['role'] as string) || 'SRE_OPERATOR'];
+
+    const principal: AuthenticatedPrincipal = {
+      subject: (payload.sub as string) || 'unknown-user',
+      roles,
+    };
+
+    if (typeof payload['email'] === 'string') {
+      principal.email = payload['email'];
+    }
+    const displayName = (payload['name'] || payload['preferred_username'] || payload.sub) as string | undefined;
+    if (displayName) {
+      principal.displayName = displayName;
+    }
+    if (typeof payload.iss === 'string') {
+      principal.issuer = payload.iss;
+    }
+
+    return principal;
   } catch (err) {
     return null;
   }
