@@ -6,6 +6,8 @@ const testDbUrl =
   'postgresql://opspilot:opspilot@localhost:5432/opspilot_test?sslmode=disable';
 
 process.env['DATABASE_URL'] = testDbUrl;
+process.env['JWT_SECRET'] =
+  process.env['JWT_SECRET'] || 'example_shared_jwt_secret_min_32_bytes_long_string_for_dev_only';
 process.env['ENABLE_GOVERNANCE_CONTROL_CENTER'] = 'true';
 process.env['ENABLE_DRIFT_MONITORING'] = 'true';
 process.env['ENABLE_AI_INCIDENT_MGMT'] = 'true';
