@@ -538,6 +538,59 @@ This commit (`a179865c29c90df10a5a6991a464c5e397085584`) and this environment co
    - Relevant query via `POST /api/v1/knowledge/query` -> Returned `GROUNDED_EVIDENCE_FOUND` with 1.0 similarity score and complete provenance.
    - Unrelated query via `POST /api/v1/knowledge/query` with high threshold -> Returned mandatory abstention `INSUFFICIENT_EVIDENCE` with clear explanation.
 
+---
+
+## 15. Addendum: Sim 2.0 Backend MVP Final Verification Pass (2026-08-25)
+
+### 15.1 Step 0: Local Phase-Coherent Commit Sequence
+All accumulated Sim 2.0 backend MVP work was committed locally on `main` into logical, reviewable commits. Zero commits or code changes were pushed to `origin/main` or Railway.
+- `a54fe4c` `feat(drift): model drift detection and AI incident management`
+- `66f00ed` `feat(reporting): cross-cutting reporting aggregation layer`
+- `061a480` `feat(remediation): multi-option proposals and evidence-based verification`
+- `129d85e` `feat(predictions): predictive intelligence trend detection`
+- `eda36c3` `feat(rag): grounded retrieval knowledge base foundation`
+- `f1cdd6f` `test(integration): add cross-module lifecycle integration suite`
+- `1297341` `fix(seed): import dotenv/config in seed script for clean out-of-the-box execution`
+- `af2e93a` `fix(test): set fallback JWT_SECRET in vitest.config.ts for clean test environment`
+- `c21dd81` `test(governance,integration): ensure test self-containment for governance policies and property paths`
+- `65b9a82` `test(integration): align reporting assertions with exact service interface fields`
+
+Working tree status: 100% clean (`nothing to commit, working tree clean`). Branch ahead of `origin/main` by 11 local commits.
+
+### 15.2 Step 1: Remediation v2 Approve-Route Decision Settled
+1. **Decision Implementation:**
+   - Reverted `POST /api/v1/remediation/:id/approve` to exact original Sim 1.0 behavior (always executes post-approval immediately via `executor.executeAction` and `verifier.verifyRecovery`).
+   - Added `POST /api/v1/remediation/:id/approve-verified` as a new v2-only endpoint (gated behind `ENABLE_REMEDIATION_V2` and `REMEDIATION_EXECUTE`).
+   - `approve-verified` transitions action status to `APPROVED` without immediate execution, specifically designed for actions with defined `successCriteria`. Calling `/approve-verified` on an action without `successCriteria` returns `HTTP 400 INVALID_REMEDIATION_TYPE`.
+2. **Flag & Regression Verification:**
+   - Flag-OFF (`ENABLE_REMEDIATION_V2=false`): `POST /approve-verified` returned `HTTP 404 Not Found`. Sim 1.0 regression suite (`remediation-v1-regression.test.ts`) passed 4/4.
+   - Flag-ON (`ENABLE_REMEDIATION_V2=true`): `POST /approve-verified` registered cleanly and passed all v2 multi-option lifecycle tests.
+
+### 15.3 Step 2: Cross-Module Integration Suite & Data Model Linkage Findings
+1. **Integration Test Suite (`apps/api/src/modules/cross-module-integration.test.ts`):**
+   - Step A (Governance): Creates `GovernedAsset` (`Credit Risk Prediction Model v2`) and `Service` (`Credit Risk Microservice`).
+   - Step B (Drift & AI Incidents): Creates `DriftMonitor` for the asset, observes shifted probability distribution `[0.05, 0.05, 0.45, 0.45]`, and escalates drift event (`POST /api/v1/drift/events/:id/review` with `action: 'escalate'`), auto-creating linked `AiIncident`.
+   - Step C (Remediation V2): Proposes multi-option remediation set against operational `Incident` on the service, approves option via `POST /:id/approve-verified`, executes via `POST /:id/execute-verified` (capturing baseline & superseding losing options), updates `SimService` health, and verifies outcome via `POST /:id/verify` -> `VERIFIED_SUCCESS` (auto-resolving operational incident).
+   - Step D (Reporting): Verifies Governance, Operational, and Executive reports reflect all data across all 4 roles (`VIEWER`, `SRE_OPERATOR`, `INCIDENT_COMMANDER`, `SECURITY_ADMIN`).
+   - Step E (RAG): Ingests runbook via `POST /api/v1/knowledge/sources` and queries via `POST /api/v1/knowledge/query` -> returns grounded evidence with provenance.
+2. **Data Model Linkage Findings (Honest Assessment):**
+   - **Governance Asset vs Operational Service:** `GovernedAsset` represents an AI model entity, whereas `Service` represents an operational microservice. There is no direct FK relationship between `GovernedAsset` and `Service` in the database schema.
+   - **Cross-Stream Linkage:** The bridge between AI model drift and operational remediation occurs when a `DriftEvent` escalates to an `AiIncident`, while the operational `Incident` on the underlying `Service` is remediated via `RemediationAction`.
+   - **Reporting Aggregation:** `Reporting` serves as the unifying layer: `GET /api/v1/reports/governance` aggregates AI assets & AI incidents; `GET /api/v1/reports/operational` aggregates microservices, operational incidents, and remediation outcomes; `GET /api/v1/reports/executive` combines both streams with strict mathematical parity.
+
+### 15.4 Step 3: Fresh-Clone Verification Verdict
+1. **Procedure Executed:**
+   - Cloned local repository to throwaway directory `/tmp/opspilot-clone-verify`.
+   - Executed `pnpm install` -> 478 packages installed cleanly.
+   - Created `.env` pointing to throwaway database `opspilot_clone_verify_db`.
+   - Created database `opspilot_clone_verify_db`.
+   - Executed `npx prisma migrate deploy` -> **Applied all 9 migrations from scratch cleanly without a single error or manual step.**
+   - Executed `pnpm seed` -> Seeded 9 services, 11 dependencies, 5 policies, 3 runbooks, 4 threshold rules, and 3 governance policies cleanly.
+   - Executed `pnpm typecheck` -> 11/11 packages passed.
+   - Executed `pnpm build` -> 11/11 packages built cleanly (including `@opspilot/web` production bundle).
+   - Executed `pnpm test` -> **69/69 tests passed across 16 test files cleanly.**
+2. **Clean-Up:** Database `opspilot_clone_verify_db` dropped and `/tmp/opspilot-clone-verify` directory deleted.
+
 
 
 
