@@ -2,9 +2,9 @@
  * OpsPilot AI — Database Seed Script
  * Populates the 9 simulated services, their dependencies, simulator state,
  * a default admin user, and default policies.
- *
  * Usage: pnpm db:seed
  */
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 
 const db = new PrismaClient();
