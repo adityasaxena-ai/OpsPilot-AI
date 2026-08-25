@@ -1,6 +1,6 @@
 # OpsPilot AI — Local Baseline Record
 **Baseline Date:** 2026-08-24  
-**Git Commit SHA:** `a179865c29c90df10a5a6991a464c5e397085584`  
+**Git Commit SHA:** `3026bdc1815ad821a7199464eebaa50ee8c4e511`  
 **Git Branch:** `main` (synchronized with `origin/main`)
 
 ---
@@ -177,3 +177,31 @@ This commit (`a179865c29c90df10a5a6991a464c5e397085584`) and this environment co
 3. `pnpm build`: 11/11 packages built successfully.
 4. `pnpm test`: 3 files passed, 14 tests passed, 0 failures.
 5. `NODE_ENV=development` & `NODE_ENV=production` real server smoke tests: `/health`, `/api/v1/telemetry/status`, `/api/v1/incidents`, `/api/v1/services` all returned `200 OK` on clean seeded database.
+
+---
+
+## 6. Addendum: Railway Production Sync & Live Auth Bypass Closure (2026-08-25)
+
+### Pre-Deployment Environment Preparation
+1. **Cryptographic `JWT_SECRET` Generation & Injection:** Generated a 64-character (48 random bytes) cryptographically random production `JWT_SECRET` using Node `crypto.randomBytes(48)`. Set on Railway via `npx @railway/cli variables set JWT_SECRET="..." --service @opspilot/api`.
+2. **`NODE_ENV` Injection:** Set `NODE_ENV=production` on Railway via `npx @railway/cli variables set NODE_ENV=production --service @opspilot/api`.
+3. **Environment Audit:** Re-ran `railway variables -s @opspilot/api`. Confirmed both `JWT_SECRET` and `NODE_ENV` are present in production variables.
+
+### Git Commits & Deployment
+1. **Commit 1 (`167345f`):** `feat(auth): implement HS256 JWT signature verification and retire test-token bypass`
+2. **Commit 2 (`371000f`):** `fix(db): add additive migration for threshold_rules table and document User.role`
+3. **Commit 3 (`3026bdc`):** `docs(baseline): document local baseline record and four-fix closure`
+4. **Push:** Pushed `main` to `origin/main` (`a179865..3026bdc`).
+5. **Railway Deployment:** Triggered deployment `5ec7b69e-a6f9-4d05-90b3-59f6f15189bb` on `@opspilot/api`. Deployment reached `SUCCESS` state at 2026-08-25 09:48:43 IST.
+
+### Live Production Verification Results
+1. **`GET /health`:** `HTTP/2 200 OK` (`{"status":"ok","health":"healthy","version":"0.1.0"}`)
+2. **`GET /api/v1/telemetry/status`:** `HTTP/2 200 OK` (`{"success":true,"data":{"providerName":"otel","status":"HEALTHY","activeSource":"OpenTelemetry / Prometheus — Production"}}`)
+3. **Bypass Closure Check (`POST /api/v1/remediation/1/execute` with Bearer `test-token-SECURITY_ADMIN-anyone`):**  
+   `HTTP/2 401 Unauthorized` — `{"success":false,"error":{"code":"INVALID_TOKEN","message":"Invalid authentication token"}}`  
+   *(Live authentication bypass is 100% CLOSED on production)*
+4. **Valid Production HS256 JWT Verification:** Minted a temporary `INCIDENT_COMMANDER` JWT token using the production `JWT_SECRET`.  
+   `POST /api/v1/remediation/1/execute`  
+   `HTTP/2 404 Not Found` — `{"success":false,"error":{"code":"NOT_FOUND","message":"Action not found"}}`  
+   *(Authenticated and authorized successfully in production; temporary script and token file destroyed immediately after use)*
+5. **Production Database Consistency:** Verified 23 tables exist in Neon DB including `threshold_rules`, and `_prisma_migrations` records all 3 migrations (`20260806000000_init`, `20260811000000_add_missing_incident_statuses`, `20260824000000_add_threshold_rules_table`).
