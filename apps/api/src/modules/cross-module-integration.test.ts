@@ -163,7 +163,7 @@ describe('Cross-Module Integration Test — Full Lifecycle (Governance, Drift, A
     });
 
     expect(escalateRes.statusCode).toBe(200);
-    expect(escalateRes.json().data.state).toBe('ESCALATED');
+    expect(escalateRes.json().data.event.state).toBe('ESCALATED');
 
     // Verify linked AI Incident was auto-created
     const aiIncidentsRes = await app.inject({

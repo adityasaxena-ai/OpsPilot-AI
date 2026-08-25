@@ -41,6 +41,18 @@ describe('Governance Control Center Routes Integration', () => {
 
     app = await buildApp();
     await app.ready();
+
+    // Ensure default AGENT governance policy exists for testing
+    await db.governancePolicy.deleteMany({});
+    await db.governancePolicy.create({
+      data: {
+        name: 'Agent Deployment Policy',
+        description: 'Requires human approval to deploy AI Agents to APPROVED or LIVE stages',
+        appliesTo: 'AGENT',
+        requiresApprovalFor: ['APPROVED', 'LIVE'],
+        isActive: true,
+      },
+    });
   });
 
   const cleanupGovernanceTables = async () => {
