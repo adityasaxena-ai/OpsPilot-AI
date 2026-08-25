@@ -18,6 +18,12 @@ import { integrationRoutes } from './modules/integrations/integrations.routes.js
 import { telemetryRoutes } from './modules/telemetry/telemetry.routes.js';
 import { rulesRoutes } from './modules/rules/rules.routes.js';
 import { topologyRoutes } from './modules/topology/topology.routes.js';
+import { governanceRoutes } from './modules/governance/governance.routes.js';
+import { driftRoutes } from './modules/drift/drift.routes.js';
+import { aiIncidentRoutes } from './modules/ai-incidents/ai-incidents.routes.js';
+import { reportingRoutes } from './modules/reporting/reporting.routes.js';
+import { predictionRoutes } from './modules/predictions/predictions.routes.js';
+import { knowledgeRoutes } from './modules/knowledge/knowledge.routes.js';
 import { db } from './lib/db.js';
 import { redis } from './lib/redis.js';
 import { startSimulatorTick, stopSimulatorTick } from './modules/simulator/simulator.service.js';
@@ -43,28 +49,18 @@ export async function buildApp() {
       const str = typeof body === 'string' ? body : body ? body.toString('utf8') : '';
       const json = JSON.parse(str.trim() || '{}');
       done(null, json);
-    } catch (err) {
-      done(err as Error, undefined);
+    } catch (err: any) {
+      err.statusCode = 400;
+      done(err, undefined);
     }
   });
 
   // ── Security plugins ──────────────────────────────────────────────────
-  await app.register(helmet, { global: true });
+  await app.register(helmet, {
+    contentSecurityPolicy: config.NODE_ENV === 'production',
+  });
   await app.register(cors, {
-    origin: (origin, cb) => {
-      // Allow requests with no origin (curl, postman, server-to-server)
-      if (!origin) return cb(null, true);
-      // Allow configured WEB_URL or any vercel.app preview domain or localhost
-      if (
-        origin === config.WEB_URL ||
-        origin.endsWith('.vercel.app') ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1')
-      ) {
-        return cb(null, true);
-      }
-      return cb(null, true);
-    },
+    origin: [config.WEB_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
   });
   await app.register(rateLimit, {
@@ -107,6 +103,25 @@ export async function buildApp() {
   await app.register(telemetryRoutes, { prefix: '/api/v1/telemetry' });
   await app.register(rulesRoutes, { prefix: '/api/v1/rules' });
   await app.register(topologyRoutes, { prefix: '/api/v1/topology' });
+
+  if (config.ENABLE_GOVERNANCE_CONTROL_CENTER) {
+    await app.register(governanceRoutes, { prefix: '/api/v1/governance' });
+  }
+
+  if (config.ENABLE_DRIFT_MONITORING) {
+    await app.register(driftRoutes, { prefix: '/api/v1/drift' });
+  }
+
+  if (config.ENABLE_AI_INCIDENT_MGMT) {
+    await app.register(aiIncidentRoutes, { prefix: '/api/v1/ai-incidents' });
+  }
+
+  if (config.ENABLE_REPORTING) {
+    await app.register(reportingRoutes, { prefix: '/api/v1/reports' });
+  }
+
+  await app.register(predictionRoutes, { prefix: '/api/v1/predictions' });
+  await app.register(knowledgeRoutes, { prefix: '/api/v1/knowledge' });
 
   // ── Global error handler ───────────────────────────────────────────────
   app.setErrorHandler((error, _request, reply) => {

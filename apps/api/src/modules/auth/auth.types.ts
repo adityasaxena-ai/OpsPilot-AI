@@ -15,7 +15,20 @@ export type Permission =
   | 'REMEDIATION_APPROVE'
   | 'REMEDIATION_EXECUTE'
   | 'AUDIT_VIEW'
-  | 'ADMIN_CONFIGURATION';
+  | 'ADMIN_CONFIGURATION'
+  | 'GOVERNANCE_VIEW'
+  | 'GOVERNANCE_MANAGE'
+  | 'GOVERNANCE_APPROVE'
+  | 'DRIFT_VIEW'
+  | 'DRIFT_MANAGE'
+  | 'DRIFT_REVIEW'
+  | 'AI_INCIDENT_VIEW'
+  | 'AI_INCIDENT_MANAGE'
+  | 'REPORTING_VIEW'
+  | 'PREDICTION_VIEW'
+  | 'PREDICTION_MANAGE'
+  | 'KNOWLEDGE_VIEW'
+  | 'KNOWLEDGE_MANAGE';
 
 // Note: Role is intentionally NOT unified with Prisma UserRole as of 2026-08-24.
 // JWT-claims-based Role is the source of truth for authorization;

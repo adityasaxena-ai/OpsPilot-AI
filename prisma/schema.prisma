@@ -98,6 +98,7 @@ enum RemediationStatus {
   AWAITING_APPROVAL
   APPROVED
   REJECTED
+  SUPERSEDED
   EXECUTING
   SUCCEEDED
   FAILED
@@ -154,6 +155,22 @@ enum ChaosScenario {
   CERT_EXPIRY
 }
 
+enum AssetType {
+  MODEL
+  AGENT
+  PROMPT
+  KNOWLEDGE_SOURCE
+}
+
+enum LifecycleStage {
+  PROPOSED
+  EVALUATED
+  APPROVED
+  LIVE
+  UNDER_REVIEW
+  RETIRED
+}
+
 // ─────────────────────────────────────────────
 // Identity
 // ─────────────────────────────────────────────
@@ -169,10 +186,17 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  assignedIncidents   Incident[]          @relation("AssignedIncidents")
-  approvalRequests    Approval[]          @relation("ApprovalRequester")
-  approvalResponses   Approval[]          @relation("ApprovalResponder")
-  auditLogs           AuditLog[]
+  assignedIncidents            Incident[]                 @relation("AssignedIncidents")
+  approvalRequests             Approval[]                 @relation("ApprovalRequester")
+  approvalResponses            Approval[]                 @relation("ApprovalResponder")
+  auditLogs                    AuditLog[]
+  governanceAssessments        GovernanceRiskAssessment[]
+  governanceApprovalRequests   GovernanceApproval[]       @relation("GovernanceRequestedBy")
+  governanceApprovalResponses  GovernanceApproval[]       @relation("GovernanceApprovedBy")
+  driftEventReviews            DriftEvent[]               @relation("DriftEventReviewedBy")
+  aiIncidentTimelineEntries    AiIncidentTimelineEntry[]  @relation("AiIncidentTimelineActor")
+  predictionReviews            Prediction[]               @relation("PredictionReviewedBy")
+  createdKnowledgeSources      KnowledgeSource[]          @relation("KnowledgeSourceCreatedBy")
 
   @@map("users")
 }
@@ -202,6 +226,7 @@ model Service {
   runbooks      Runbook[]
   thresholdRules ThresholdRule[]
   simState      SimService?
+  predictionMonitors PredictionMonitor[]
 
   @@map("services")
 }
@@ -329,6 +354,7 @@ model Incident {
   evidence          Evidence[]
   investigations    Investigation[]
   rcaResults        RCAResult[]
+  aiIncidents       AiIncident[]
   remediations      RemediationAction[]
   approvals         Approval[]
   postmortem        Postmortem?
@@ -419,30 +445,55 @@ model RCAResult {
 // Remediation & Approvals (Phase 3 ready)
 // ─────────────────────────────────────────────
 
-model RemediationAction {
-  id             String                @id @default(cuid())
-  incidentId     String                @map("incident_id")
-  actionType     RemediationActionType @map("action_type")
-  actionParams   Json                  @default("{}") @map("action_params")
-  status         RemediationStatus     @default(PROPOSED)
-  riskScore      Int                   @default(0) @map("risk_score")
-  riskLevel      RiskLevel             @default(LOW) @map("risk_level")
-  riskFactors    Json                  @default("{}") @map("risk_factors")
-  proposedByAi   Boolean               @default(true) @map("proposed_by_ai")
-  proposedAt     DateTime              @default(now()) @map("proposed_at")
-  executedAt     DateTime?             @map("executed_at")
-  completedAt    DateTime?             @map("completed_at")
-  executionLog   String?               @map("execution_log")
-  createdAt      DateTime              @default(now()) @map("created_at")
-  updatedAt      DateTime              @updatedAt @map("updated_at")
+enum VerificationVerdict {
+  VERIFIED_SUCCESS
+  INCONCLUSIVE
+  VERIFIED_FAILURE
+}
 
-  incident  Incident    @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+model RemediationAction {
+  id                     String                @id @default(cuid())
+  incidentId             String                @map("incident_id")
+  remediationOptionSetId String?               @map("remediation_option_set_id")
+  actionType             RemediationActionType @map("action_type")
+  actionParams           Json                  @default("{}") @map("action_params")
+  status                 RemediationStatus     @default(PROPOSED)
+  riskScore              Int                   @default(0) @map("risk_score")
+  riskLevel              RiskLevel             @default(LOW) @map("risk_level")
+  riskFactors            Json                  @default("{}") @map("risk_factors")
+  proposedByAi           Boolean               @default(true) @map("proposed_by_ai")
+  proposedAt             DateTime              @default(now()) @map("proposed_at")
+  executedAt             DateTime?             @map("executed_at")
+  completedAt            DateTime?             @map("completed_at")
+  executionLog           String?               @map("execution_log")
+  successCriteria        Json?                 @map("success_criteria")
+  verificationVerdict    VerificationVerdict?  @map("verification_verdict")
+  verifiedAt             DateTime?             @map("verified_at")
+  verificationNotes      String?               @map("verification_notes")
+  createdAt              DateTime              @default(now()) @map("created_at")
+  updatedAt              DateTime              @updatedAt @map("updated_at")
+
+  incident  Incident             @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   approval  Approval?
+  baseline  RemediationBaseline?
   auditLogs AuditLog[]
 
   @@index([incidentId])
+  @@index([remediationOptionSetId])
   @@index([status])
   @@map("remediation_actions")
+}
+
+model RemediationBaseline {
+  id                  String            @id @default(cuid())
+  remediationActionId String            @unique @map("remediation_action_id")
+  capturedMetrics     Json              @map("captured_metrics")
+  capturedAt          DateTime          @default(now()) @map("captured_at")
+  createdAt           DateTime          @default(now()) @map("created_at")
+
+  remediationAction   RemediationAction @relation(fields: [remediationActionId], references: [id], onDelete: Cascade)
+
+  @@map("remediation_baselines")
 }
 
 model Approval {
@@ -648,3 +699,348 @@ model ThresholdRule {
   @@index([serviceId])
   @@map("threshold_rules")
 }
+
+// ─────────────────────────────────────────────
+// AI Governance Control Center (Sim 2.0)
+// ─────────────────────────────────────────────
+
+model GovernedAsset {
+  id             String         @id @default(cuid())
+  name           String
+  assetType      AssetType      @map("asset_type")
+  description    String
+  ownerTeam      String         @map("owner_team")
+  ownerEmail     String         @map("owner_email")
+  purpose        String
+  lifecycleStage LifecycleStage @default(PROPOSED) @map("lifecycle_stage")
+  riskLevel      RiskLevel      @default(LOW) @map("risk_level")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  riskAssessments GovernanceRiskAssessment[]
+  approvals       GovernanceApproval[]
+  driftMonitors   DriftMonitor[]
+  driftEvents     DriftEvent[]
+  aiIncidents     AiIncident[]
+
+  @@map("governed_assets")
+}
+
+model GovernanceRiskAssessment {
+  id                  String        @id @default(cuid())
+  governedAssetId     String        @map("governed_asset_id")
+  fairnessNotes       String?       @map("fairness_notes")
+  transparencyNotes   String?       @map("transparency_notes")
+  privacyNotes        String?       @map("privacy_notes")
+  accountabilityNotes String?       @map("accountability_notes")
+  reliabilityNotes    String?       @map("reliability_notes")
+  securityNotes       String?       @map("security_notes")
+  riskScore           Int           @map("risk_score")
+  riskLevel           RiskLevel     @map("risk_level")
+  assessedById        String?       @map("assessed_by_id")
+  assessedBySubject   String?       @map("assessed_by_subject")
+  assessedAt          DateTime      @default(now()) @map("assessed_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
+
+  asset               GovernedAsset @relation(fields: [governedAssetId], references: [id], onDelete: Cascade)
+  assessedBy          User?         @relation(fields: [assessedById], references: [id], onDelete: SetNull)
+
+  @@index([governedAssetId])
+  @@map("governance_risk_assessments")
+}
+
+model GovernancePolicy {
+  id                  String    @id @default(cuid())
+  name                String
+  description         String
+  appliesTo           AssetType @map("applies_to")
+  requiresApprovalFor String[]  @map("requires_approval_for")
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@map("governance_policies")
+}
+
+model GovernanceApproval {
+  id              String         @id @default(cuid())
+  governedAssetId String         @map("governed_asset_id")
+  targetStage     LifecycleStage @map("target_stage")
+  status          ApprovalStatus @default(PENDING)
+  requestedById      String?        @map("requested_by_id")
+  requestedBySubject String?        @map("requested_by_subject")
+  approvedById       String?        @map("approved_by_id")
+  approvedBySubject  String?        @map("approved_by_subject")
+  requestedAt        DateTime       @default(now()) @map("requested_at")
+  respondedAt     DateTime?      @map("responded_at")
+  expiresAt       DateTime?      @map("expires_at")
+  rejectionReason String?        @map("rejection_reason")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  asset           GovernedAsset  @relation(fields: [governedAssetId], references: [id], onDelete: Cascade)
+  requestedBy     User?          @relation("GovernanceRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  approvedBy      User?          @relation("GovernanceApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([governedAssetId])
+  @@map("governance_approvals")
+}
+
+// ─────────────────────────────────────────────
+// Model Drift Detection & AI Incident Management (Sim 2.0 S2-FR-04 & S2-FR-05)
+// ─────────────────────────────────────────────
+
+enum DriftMethod {
+  PSI
+  ERROR_RATE_COMPARISON
+}
+
+enum DriftState {
+  HEALTHY
+  WARNING
+  DRIFT_DETECTED
+  UNDER_REVIEW
+  VALIDATION_REMEDIATION
+  RESOLVED
+  ESCALATED
+}
+
+enum AiIncidentType {
+  MODEL_DRIFT
+  HARMFUL_OUTPUT
+  UNEXPECTED_BEHAVIOR
+  RELIABILITY_FAILURE
+  POLICY_VIOLATION
+  GOVERNANCE_CONTROL_FAILURE
+  DATA_ISSUE
+  PERFORMANCE_DEGRADATION
+  HALLUCINATION
+}
+
+enum AiIncidentStatus {
+  DETECTED
+  TRIAGED
+  UNDER_INVESTIGATION
+  UNDER_REVIEW
+  REMEDIATION_PLANNED
+  REMEDIATION_IN_PROGRESS
+  MONITORING
+  RESOLVED
+  CLOSED
+}
+
+enum AiIncidentTimelineEntryType {
+  IMPACT
+  EVIDENCE
+  CONTAINMENT
+  INVESTIGATION
+  REMEDIATION
+  APPROVAL
+  CLOSURE
+}
+
+model DriftMonitor {
+  id               String        @id @default(cuid())
+  governedAssetId  String        @map("governed_asset_id")
+  metricName       String        @map("metric_name")
+  method           DriftMethod
+  // Expected baselineSnapshot format per method:
+  // - PSI: number[] (e.g. [0.1, 0.2, 0.4, 0.2, 0.1] - probability distribution per bin)
+  // - ERROR_RATE_COMPARISON: number (e.g. 0.02 - reference baseline error rate)
+  baselineSnapshot Json          @map("baseline_snapshot")
+  // Threshold score above which drift is flagged:
+  // - PSI: >0.1 moderate, >0.25 significant (configurable threshold float value)
+  // - ERROR_RATE_COMPARISON: e.g. 0.05 absolute delta or relative multiplier
+  threshold        Float
+  isEnabled        Boolean       @default(true) @map("is_enabled")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  asset       GovernedAsset @relation(fields: [governedAssetId], references: [id], onDelete: Cascade)
+  driftEvents DriftEvent[]
+
+  @@index([governedAssetId])
+  @@map("drift_monitors")
+}
+
+model DriftEvent {
+  id                String        @id @default(cuid())
+  driftMonitorId    String        @map("drift_monitor_id")
+  governedAssetId   String        @map("governed_asset_id")
+  state             DriftState    @default(HEALTHY)
+  metricName        String        @map("metric_name")
+  baselineValue     Json          @map("baseline_value")
+  currentValue      Json          @map("current_value")
+  computedScore     Float         @map("computed_score")
+  threshold         Float
+  detectedAt        DateTime?     @map("detected_at")
+  resolvedAt        DateTime?     @map("resolved_at")
+  reviewedById      String?       @map("reviewed_by_id")
+  reviewedBySubject String?       @map("reviewed_by_subject")
+  reviewNotes       String?       @map("review_notes")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  monitor     DriftMonitor  @relation(fields: [driftMonitorId], references: [id], onDelete: Cascade)
+  asset       GovernedAsset @relation(fields: [governedAssetId], references: [id], onDelete: Cascade)
+  reviewedBy  User?         @relation("DriftEventReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  aiIncidents AiIncident[]
+
+  @@index([driftMonitorId])
+  @@index([governedAssetId])
+  @@map("drift_events")
+}
+
+model AiIncident {
+  id                String           @id @default(cuid())
+  governedAssetId   String?          @map("governed_asset_id")
+  relatedIncidentId String?          @map("related_incident_id")
+  driftEventId      String?          @map("drift_event_id")
+  incidentType      AiIncidentType   @map("incident_type")
+  title             String
+  description       String
+  status            AiIncidentStatus @default(DETECTED)
+  severity          Severity
+  detectedAt        DateTime         @default(now()) @map("detected_at")
+  resolvedAt        DateTime?        @map("resolved_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  asset           GovernedAsset?            @relation(fields: [governedAssetId], references: [id], onDelete: SetNull)
+  relatedIncident Incident?                 @relation(fields: [relatedIncidentId], references: [id], onDelete: SetNull)
+  driftEvent      DriftEvent?               @relation(fields: [driftEventId], references: [id], onDelete: SetNull)
+  timelineEntries AiIncidentTimelineEntry[]
+
+  @@index([governedAssetId])
+  @@index([relatedIncidentId])
+  @@index([driftEventId])
+  @@map("ai_incidents")
+}
+
+model AiIncidentTimelineEntry {
+  id           String                      @id @default(cuid())
+  aiIncidentId String                      @map("ai_incident_id")
+  entryType    AiIncidentTimelineEntryType @map("entry_type")
+  description  String
+  metadata     Json                        @default("{}")
+  actorId      String?                     @map("actor_id")
+  actorSubject String?                     @map("actor_subject")
+  createdAt    DateTime                    @default(now()) @map("created_at")
+
+  aiIncident AiIncident @relation(fields: [aiIncidentId], references: [id], onDelete: Cascade)
+  actor      User?      @relation("AiIncidentTimelineActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([aiIncidentId])
+  @@map("ai_incident_timeline_entries")
+}
+
+// ─────────────────────────────────────────────
+// Predictive Intelligence (Sim 2.0 Operational Risk)
+// ─────────────────────────────────────────────
+
+enum PredictionMethod {
+  TREND_SLOPE
+}
+
+enum PredictionStatus {
+  ACTIVE
+  EXPIRED
+  INSUFFICIENT_EVIDENCE
+}
+
+model PredictionMonitor {
+  id             String           @id @default(cuid())
+  serviceId      String           @map("service_id")
+  metricName     String           @map("metric_name")
+  threshold      Float
+  horizonMinutes Int              @map("horizon_minutes")
+  minimumSamples Int              @default(5) @map("minimum_samples")
+  method         PredictionMethod @default(TREND_SLOPE)
+  isEnabled      Boolean          @default(true) @map("is_enabled")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  service     Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  predictions Prediction[]
+
+  @@index([serviceId])
+  @@map("prediction_monitors")
+}
+
+model Prediction {
+  id                  String           @id @default(cuid())
+  predictionMonitorId String           @map("prediction_monitor_id")
+  serviceId           String           @map("service_id")
+  metricName          String           @map("metric_name")
+  status              PredictionStatus
+  projectedValue      Float?           @map("projected_value")
+  confidence          Float            // 0 to 1
+  horizonMinutes      Int              @map("horizon_minutes")
+  threshold           Float
+  evidenceSamples     Json             @map("evidence_samples")
+  trendSlope          Float?           @map("trend_slope")
+  explanation         String
+  predictedAt         DateTime         @default(now()) @map("predicted_at")
+  expiresAt           DateTime         @map("expires_at")
+  reviewedById        String?          @map("reviewed_by_id")
+  reviewedBySubject   String?          @map("reviewed_by_subject")
+  reviewNotes         String?          @map("review_notes")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+
+  predictionMonitor PredictionMonitor @relation(fields: [predictionMonitorId], references: [id], onDelete: Cascade)
+  reviewedBy        User?             @relation("PredictionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([predictionMonitorId])
+  @@index([serviceId])
+  @@index([status])
+  @@map("predictions")
+}
+
+// ─────────────────────────────────────────────
+// Grounded Retrieval & RAG Knowledge Base (Sim 2.0 S2-FR-10)
+// ─────────────────────────────────────────────
+
+enum KnowledgeSourceType {
+  RUNBOOK
+  POLICY
+  ARCHITECTURE_DOC
+  INCIDENT_HISTORY
+  GOVERNANCE_POLICY
+}
+
+model KnowledgeSource {
+  id               String              @id @default(cuid())
+  title            String
+  sourceType       KnowledgeSourceType @map("source_type")
+  isActive         Boolean             @default(true) @map("is_active")
+  isPublic         Boolean             @default(true) @map("is_public")
+  createdById      String?             @map("created_by_id")
+  createdBySubject String?             @map("created_by_subject")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  createdBy User?            @relation("KnowledgeSourceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  chunks    KnowledgeChunk[]
+
+  @@index([sourceType])
+  @@index([isActive])
+  @@index([isPublic])
+  @@map("knowledge_sources")
+}
+
+model KnowledgeChunk {
+  id                String          @id @default(cuid())
+  knowledgeSourceId String          @map("knowledge_source_id")
+  chunkIndex        Int             @map("chunk_index")
+  content           String
+  embedding         Json            // Array of floats (number[])
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  knowledgeSource KnowledgeSource @relation(fields: [knowledgeSourceId], references: [id], onDelete: Cascade)
+
+  @@index([knowledgeSourceId])
+  @@map("knowledge_chunks")
+}
+
+

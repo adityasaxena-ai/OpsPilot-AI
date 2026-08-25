@@ -30,11 +30,31 @@ const envSchema = z.object({
     .default('true'),
   SIMULATOR_TICK_INTERVAL_MS: z.coerce.number().int().default(15000),
 
-  // Safety
+  // Safety & Governance
   ENABLE_AUTONOMOUS_REMEDIATION: z
-    .string()
-    .transform((v) => v === 'true')
-    .default('false'),
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  ENABLE_GOVERNANCE_CONTROL_CENTER: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  ENABLE_DRIFT_MONITORING: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  ENABLE_AI_INCIDENT_MGMT: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  ENABLE_REPORTING: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  ENABLE_REMEDIATION_V2: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  ENABLE_PREDICTIVE_INTELLIGENCE: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  ENABLE_RAG: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
   APPROVAL_EXPIRY_MINUTES: z.coerce.number().int().default(15),
   MAX_REMEDIATION_RISK_AUTONOMOUS: z.coerce.number().int().default(30),
 

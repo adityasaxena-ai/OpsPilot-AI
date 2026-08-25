@@ -12,7 +12,7 @@ const db = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding OpsPilot database...');
 
-  // ── Admin user ─────────────────────────────────────────────────────────────
+  // ── Admin & Dev Test Users ──────────────────────────────────────────────────
   const adminUser = await db.user.upsert({
     where: { email: 'admin@opspilot.dev' },
     update: {},
@@ -34,6 +34,42 @@ async function main() {
     },
   });
   console.log('✅ SRE user created:', icUser.email);
+
+  const devSecAdmin = await db.user.upsert({
+    where: { email: 'sec-admin-user@opspilot.dev' },
+    update: {},
+    create: {
+      id: 'sec-admin-user',
+      email: 'sec-admin-user@opspilot.dev',
+      name: 'Dev SECURITY_ADMIN sec-admin-user',
+      role: 'ADMIN',
+    },
+  });
+  console.log('✅ Dev SEC_ADMIN user created:', devSecAdmin.id);
+
+  const devViewer = await db.user.upsert({
+    where: { email: 'viewer-user@opspilot.dev' },
+    update: {},
+    create: {
+      id: 'viewer-user',
+      email: 'viewer-user@opspilot.dev',
+      name: 'Dev VIEWER viewer-user',
+      role: 'VIEWER',
+    },
+  });
+  console.log('✅ Dev VIEWER user created:', devViewer.id);
+
+  const devDefaultAdmin = await db.user.upsert({
+    where: { email: 'dev-user-admin@opspilot.dev' },
+    update: {},
+    create: {
+      id: 'dev-user-admin',
+      email: 'dev-user-admin@opspilot.dev',
+      name: 'Dev Default Admin',
+      role: 'ADMIN',
+    },
+  });
+  console.log('✅ Dev Default Admin user created:', devDefaultAdmin.id);
 
   // ── Services ───────────────────────────────────────────────────────────────
   const serviceDefinitions = [
@@ -421,12 +457,43 @@ async function main() {
   }
   console.log('✅ Threshold rules seeded');
 
+  // ── Governance Policies ───────────────────────────────────────────────────
+  const governancePolicies = [
+    {
+      name: 'Model Promotion Policy',
+      description: 'Requires human approval to promote AI Models to APPROVED or LIVE stages',
+      appliesTo: 'MODEL' as const,
+      requiresApprovalFor: ['APPROVED', 'LIVE'],
+      isActive: true,
+    },
+    {
+      name: 'Agent Deployment Policy',
+      description: 'Requires human approval to deploy AI Agents to APPROVED or LIVE stages',
+      appliesTo: 'AGENT' as const,
+      requiresApprovalFor: ['APPROVED', 'LIVE'],
+      isActive: true,
+    },
+    {
+      name: 'Prompt & Knowledge Base Policy',
+      description: 'Requires approval to release system prompts and knowledge sources to LIVE',
+      appliesTo: 'PROMPT' as const,
+      requiresApprovalFor: ['LIVE'],
+      isActive: true,
+    },
+  ];
+
+  for (const gp of governancePolicies) {
+    await db.governancePolicy.create({ data: gp });
+  }
+  console.log('✅ Governance policies seeded');
+
   console.log('\n🎉 Seeding complete!');
   console.log(`   Services: ${Object.keys(services).length}`);
   console.log(`   Dependencies: ${depEdges.length}`);
   console.log(`   Policies: ${policies.length}`);
   console.log(`   Runbooks: ${runbooks.length}`);
   console.log(`   Threshold Rules: ${thresholdRules.length}`);
+  console.log(`   Governance Policies: ${governancePolicies.length}`);
 }
 
 main()

@@ -11,6 +11,10 @@ export * from './mock-provider.js';
 export * from './upstage-provider.js';
 export * from './anthropic-provider.js';
 export * from './json-utils.js';
+export * from './rag/chunking.js';
+export * from './rag/similarity.js';
+export * from './rag/embedding-provider.js';
+export * from './rag/retrieval.js';
 
 let _providerInstance: AIProvider | null = null;
 
