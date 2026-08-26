@@ -155,5 +155,28 @@ To prevent resource exhaustion on Railway and ensure production defaults to demo
    - Select project `ep-floral-block-azsrnzo6`.
    - Open the **Billing / Usage** section to check the exact cycle reset date and remaining CU-hours for this specific project.
 
+---
+
+### 7. Holistic System Verdict & Final Incident Status (2026-08-26)
+
+**Final Incident Status:** `MITIGATED — Telemetry & Simulator Stabilized; Database-Dependent Endpoints Pending Neon Quota Resolution`
+
+#### A. Scrape Configuration Resolution (Step 1 Finding)
+- `apps/prometheus/prometheus.yml` was inspected. It contains only `job_name: 'prometheus'` targeting `127.0.0.1:9090`.
+- **Determination:** Scenario (b) confirmed. Real application metrics scraping was **never configured** in `prometheus.yml`. This is documented as a known, pre-existing gap. Per task constraints, no new scrape feature was built. Production telemetry defaults to `Mock` mode, ensuring zero impact on deployment stability.
+
+#### B. Holistic System Health Summary (Step 2 & 3 Finding)
+- **Overall Verdict:** **PARTIALLY STABLE / DEGRADED.**
+- **Working Components:**
+  - **Living Estate Topology Canvas (`/topology`):** **100% OPERATIONAL.** Serves 25 nodes, 28 edges, chaos overlays, pause/resume, and real-time metric streams via in-memory mock telemetry.
+  - **Telemetry Control Layer (`/api/v1/telemetry/*`):** **100% OPERATIONAL.** `Mock` mode default active and healthy.
+  - **Web Frontend Application (`opspilotweb-production`):** **100% OPERATIONAL.** Assets load clean with HTTP 200.
+  - **Simulator Tick Loop:** **100% OPERATIONAL.** Running at 5-minute interval (`300000ms`), preventing resource drain.
+  - **Railway Infrastructure:** All 3 containers (`opspilot-prometheus`, `@opspilot/api`, `@opspilot/web`) in `SUCCESS` deployment state.
+- **Failing Components:**
+  - **Incidents & Services APIs (`GET /api/v1/incidents`, `GET /api/v1/services`):** Returning HTTP 500 error (`P1001: Can't reach database server`) due to Neon quota suspension.
+  - **Frontend UI Error Behavior:** Degrades **GRACEFULLY** via React Query component error boundaries. Does NOT crash into a blank white screen.
+
+
 
 
