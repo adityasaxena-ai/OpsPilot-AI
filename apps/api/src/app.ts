@@ -60,7 +60,7 @@ export async function buildApp() {
     contentSecurityPolicy: config.NODE_ENV === 'production',
   });
   await app.register(cors, {
-    origin: [config.WEB_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: true,
     credentials: true,
   });
   await app.register(rateLimit, {
