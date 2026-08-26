@@ -190,11 +190,13 @@ To protect public site visitors from interacting with database-dependent endpoin
    - UI Controls: **Zero close buttons, zero "X" icons, zero dismiss actions.** No ESC key handler, no click-outside dismissal. All keyboard events (`Tab`, `Enter`, `Space`, `Escape`) are trapped and suppressed.
 
 2. **Trigger Logic:**
-   - Triggered on the first click, keypress, or route navigation anywhere on the page.
-   - Once triggered, `isBlocked` state locks the modal visible until a page reload.
+   - Triggered **immediately on component mount (initial page load with zero clicks)** if `VITE_MAINTENANCE_MODE` is active and session is not bypassed.
+   - Redundant safety net listeners (`click`, `keydown`, location route changes) remain attached to prevent any client-side route navigation bypass.
+   - Once triggered, `isBlocked` state locks the modal visible until a full page reload.
 
-3. **Build-Time Config (`VITE_MAINTENANCE_MODE`):**
+3. **Build-Time Config (`VITE_MAINTENANCE_MODE`) & Docker Build Finding:**
    - Controlled by `import.meta.env.VITE_MAINTENANCE_MODE === 'true'`.
+   - **Root Cause & Fix for Docker Build:** `apps/web/Dockerfile` was updated to explicitly declare `ARG VITE_MAINTENANCE_MODE=true` and `ENV VITE_MAINTENANCE_MODE=$VITE_MAINTENANCE_MODE` before `pnpm build`. Without explicit Docker `ARG`, Vite during container build evaluated `import.meta.env.VITE_MAINTENANCE_MODE` as `undefined` (`false`).
    - Set on Railway for `@opspilot/web`: `VITE_MAINTENANCE_MODE=true`.
    - *Vite Build-Time Reminder:* Because Vite injects `import.meta.env.VITE_*` at build time, turning maintenance mode off later requires removing/unsetting `VITE_MAINTENANCE_MODE` and triggering a rebuild/redeploy of `@opspilot/web`.
 
@@ -204,12 +206,13 @@ To protect public site visitors from interacting with database-dependent endpoin
    - **Persistence:** Stored in `sessionStorage.setItem('opspilot_maintenance_bypass', 'opspilot2026')`.
    - **Usage:** Loading `https://opspilotweb-production.up.railway.app/?maintenanceBypass=opspilot2026` suppresses the maintenance modal for that browser session, allowing Aditya and Antigravity to verify live site functionality.
 
-5. **Empirical Google Chrome Headless Verification (VERIFIED ON LIVE PRODUCTION):**
-   - **Visitor Test (No Bypass):** Loaded `https://opspilotweb-production.up.railway.app` in Headless Google Chrome. Initial load rendered without modal. Upon clicking navigation link `a[href="/estate"]`, the modal rendered immediately in DOM (`[role="dialog"]`). Clicking background links was intercepted and blocked by the full-viewport backdrop overlay (`Node is detached from document / navigation URL locked to /estate`).
+5. **Empirical Google Chrome Headless Verification (VERIFIED ON LIVE PRODUCTION POST-FIX):**
+   - **Immediate Initial Load Test (0 Clicks):** Loaded `https://opspilotweb-production.up.railway.app` in Headless Google Chrome without any click or keypress. The modal rendered **immediately on initial page load** in DOM (`[role="dialog"]`). Background content was obscured and non-interactive with zero user interaction required.
    - **Bypass Test (`?maintenanceBypass=opspilot2026`):** Loaded `https://opspilotweb-production.up.railway.app/?maintenanceBypass=opspilot2026`. Clicked through `/estate` and `/incidents` pages. Navigation succeeded cleanly across multiple routes with zero modal interference.
    - **Evidence Screenshots Captured:**
-     - Blocked Visitor Screenshot: [`maintenance_modal_production_blocked.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/maintenance_modal_production_blocked.png)
+     - Initial Load Blocked Visitor Screenshot: [`maintenance_modal_production_onload_blocked.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/maintenance_modal_production_onload_blocked.png)
      - Bypassed Session Screenshot: [`maintenance_modal_production_bypassed.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/maintenance_modal_production_bypassed.png)
+
 
 
 
