@@ -177,6 +177,34 @@ To prevent resource exhaustion on Railway and ensure production defaults to demo
   - **Incidents & Services APIs (`GET /api/v1/incidents`, `GET /api/v1/services`):** Returning HTTP 500 error (`P1001: Can't reach database server`) due to Neon quota suspension.
   - **Frontend UI Error Behavior:** Degrades **GRACEFULLY** via React Query component error boundaries. Does NOT crash into a blank white screen.
 
+---
+
+### 8. Full-Screen Blocking Maintenance Modal Implementation (2026-08-26)
+
+To protect public site visitors from interacting with database-dependent endpoints while Neon compute quota is suspended, a full-screen, non-dismissible maintenance modal was implemented:
+
+1. **Modal Architecture:**
+   - Component: `apps/web/src/components/common/MaintenanceModal.tsx`.
+   - Backdrop: Full-viewport overlay at `z-[99999]` with translucent background (`rgba(9, 14, 26, 0.85)`), `backdrop-blur-md`, capturing all pointer clicks.
+   - Message: *"🔧 System Maintenance in Progress — This demo environment is currently undergoing scheduled maintenance and system upgrades. Please check back shortly."*
+   - UI Controls: **Zero close buttons, zero "X" icons, zero dismiss actions.** No ESC key handler, no click-outside dismissal. All keyboard events (`Tab`, `Enter`, `Space`, `Escape`) are trapped and suppressed.
+
+2. **Trigger Logic:**
+   - Triggered on the first click, keypress, or route navigation anywhere on the page.
+   - Once triggered, `isBlocked` state locks the modal visible until a page reload.
+
+3. **Build-Time Config (`VITE_MAINTENANCE_MODE`):**
+   - Controlled by `import.meta.env.VITE_MAINTENANCE_MODE === 'true'`.
+   - Set on Railway for `@opspilot/web`: `VITE_MAINTENANCE_MODE=true`.
+   - *Vite Build-Time Reminder:* Because Vite injects `import.meta.env.VITE_*` at build time, turning maintenance mode off later requires removing/unsetting `VITE_MAINTENANCE_MODE` and triggering a rebuild/redeploy of `@opspilot/web`.
+
+4. **Hidden Operational Verification Bypass:**
+   - **Bypass Query Parameter:** `?maintenanceBypass=opspilot2026`
+   - **Bypass Token Value:** `opspilot2026`
+   - **Persistence:** Stored in `sessionStorage.setItem('opspilot_maintenance_bypass', 'opspilot2026')`.
+   - **Usage:** Loading `https://opspilotweb-production.up.railway.app/?maintenanceBypass=opspilot2026` suppresses the maintenance modal for that browser session, allowing Aditya and Antigravity to verify live site functionality.
+
+
 
 
 
