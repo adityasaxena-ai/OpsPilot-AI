@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MaintenanceModal } from '../common/MaintenanceModal';
 
 const navItems = [
   { to: '/', label: 'Command Center', icon: LayoutDashboard, exact: true },
@@ -173,6 +174,9 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* ── Blocking Maintenance Modal ── */}
+      <MaintenanceModal />
     </div>
   );
 }
