@@ -18,7 +18,10 @@ RUN pnpm exec tsc -b --force packages/types packages/telemetry apps/web
 ARG VITE_API_URL=https://opspilotapi-production.up.railway.app
 ENV VITE_API_URL=$VITE_API_URL
 
-RUN echo "web-build-cache-bust=2026-08-13" && pnpm --filter @opspilot/web build
+ARG VITE_MAINTENANCE_MODE=true
+ENV VITE_MAINTENANCE_MODE=$VITE_MAINTENANCE_MODE
+
+RUN echo "web-build-cache-bust=2026-08-26-v2" && pnpm --filter @opspilot/web build
 
 WORKDIR /app/apps/web
 

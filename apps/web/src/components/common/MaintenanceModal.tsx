@@ -8,7 +8,7 @@ export function MaintenanceModal() {
   const location = useLocation();
 
   // Check if maintenance mode is enabled via build-time env var
-  const isMaintenanceEnv = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+  const isMaintenanceEnv = import.meta.env.VITE_MAINTENANCE_MODE === 'true' || import.meta.env.VITE_MAINTENANCE_MODE === true;
 
   // Check if bypass token is present in URL query string or sessionStorage
   const [isBypassed, setIsBypassed] = useState<boolean>(() => {
