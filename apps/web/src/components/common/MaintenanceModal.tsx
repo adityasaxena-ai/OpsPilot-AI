@@ -6,7 +6,6 @@ const BYPASS_VALUE = 'opspilot2026';
 
 export function MaintenanceModal() {
   const location = useLocation();
-  const [isBlocked, setIsBlocked] = useState<boolean>(false);
 
   // Check if maintenance mode is enabled via build-time env var
   const isMaintenanceEnv = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
@@ -25,6 +24,16 @@ export function MaintenanceModal() {
     }
   });
 
+  // Immediately block on initial page load if maintenance mode is active and not bypassed
+  const [isBlocked, setIsBlocked] = useState<boolean>(() => isMaintenanceEnv && !isBypassed);
+
+  // Synchronize on mount or if environment/bypass state changes
+  useEffect(() => {
+    if (isMaintenanceEnv && !isBypassed) {
+      setIsBlocked(true);
+    }
+  }, [isMaintenanceEnv, isBypassed]);
+
   // Check URL params on location change as well
   useEffect(() => {
     try {
@@ -38,7 +47,7 @@ export function MaintenanceModal() {
     }
   }, [location]);
 
-  // Trigger modal on first click or keyboard interaction if maintenance mode is active and not bypassed
+  // Trigger modal on click or keyboard interaction (redundant safety net)
   useEffect(() => {
     if (!isMaintenanceEnv || isBypassed) return;
 
