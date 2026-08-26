@@ -204,6 +204,14 @@ To protect public site visitors from interacting with database-dependent endpoin
    - **Persistence:** Stored in `sessionStorage.setItem('opspilot_maintenance_bypass', 'opspilot2026')`.
    - **Usage:** Loading `https://opspilotweb-production.up.railway.app/?maintenanceBypass=opspilot2026` suppresses the maintenance modal for that browser session, allowing Aditya and Antigravity to verify live site functionality.
 
+5. **Empirical Google Chrome Headless Verification (VERIFIED ON LIVE PRODUCTION):**
+   - **Visitor Test (No Bypass):** Loaded `https://opspilotweb-production.up.railway.app` in Headless Google Chrome. Initial load rendered without modal. Upon clicking navigation link `a[href="/estate"]`, the modal rendered immediately in DOM (`[role="dialog"]`). Clicking background links was intercepted and blocked by the full-viewport backdrop overlay (`Node is detached from document / navigation URL locked to /estate`).
+   - **Bypass Test (`?maintenanceBypass=opspilot2026`):** Loaded `https://opspilotweb-production.up.railway.app/?maintenanceBypass=opspilot2026`. Clicked through `/estate` and `/incidents` pages. Navigation succeeded cleanly across multiple routes with zero modal interference.
+   - **Evidence Screenshots Captured:**
+     - Blocked Visitor Screenshot: [`maintenance_modal_production_blocked.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/maintenance_modal_production_blocked.png)
+     - Bypassed Session Screenshot: [`maintenance_modal_production_bypassed.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/maintenance_modal_production_bypassed.png)
+
+
 
 
 
