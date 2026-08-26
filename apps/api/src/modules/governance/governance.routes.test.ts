@@ -115,6 +115,93 @@ describe('Governance Control Center Routes Integration', () => {
     expect((auditLogs[0]!.metadata as any).actorSubject).toBe('test-sec-admin');
   });
 
+  it('supports serviceId FK linkage: valid serviceId succeeds, invalid serviceId returns 400, no serviceId is backward-compatible', async () => {
+    // 1. Create a service to link against
+    const testService = await db.service.create({
+      data: {
+        name: 'Governance Test Service',
+        slug: 'gov-test-service',
+        description: 'Operational service for governance linkage testing',
+        tier: 'T1',
+        environment: 'production',
+        ownerTeam: 'Platform SRE',
+        ownerEmail: 'sre@opspilot.dev',
+        status: 'HEALTHY',
+      },
+    });
+
+    // 2. Create GovernedAsset with valid serviceId
+    const validRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/governance/assets',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        name: 'Linked Model v1',
+        assetType: 'MODEL',
+        description: 'Linked model description',
+        ownerTeam: 'Risk AI',
+        ownerEmail: 'risk@opspilot.dev',
+        purpose: 'Fraud scoring',
+        serviceId: testService.id,
+      },
+    });
+
+    expect(validRes.statusCode).toBe(201);
+    const validBody = validRes.json();
+    expect(validBody.data.serviceId).toBe(testService.id);
+    expect(validBody.data.service).toBeDefined();
+    expect(validBody.data.service.name).toBe('Governance Test Service');
+
+    // Query detail endpoint to confirm linked service info is returned
+    const detailRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/governance/assets/${validBody.data.id}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(detailRes.statusCode).toBe(200);
+    expect(detailRes.json().data.service.name).toBe('Governance Test Service');
+
+    // 3. Create GovernedAsset with invalid serviceId -> expect 400
+    const invalidRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/governance/assets',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        name: 'Invalid Link Model',
+        assetType: 'MODEL',
+        description: 'Model with invalid service link',
+        ownerTeam: 'Risk AI',
+        ownerEmail: 'risk@opspilot.dev',
+        purpose: 'Fraud scoring',
+        serviceId: 'non-existent-service-id-999',
+      },
+    });
+
+    expect(invalidRes.statusCode).toBe(400);
+    expect(invalidRes.json().error.code).toBe('INVALID_SERVICE_ID');
+
+    // 4. Create GovernedAsset with no serviceId -> backward compatible
+    const noServiceRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/governance/assets',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        name: 'Standalone Model',
+        assetType: 'MODEL',
+        description: 'Standalone model without service link',
+        ownerTeam: 'Risk AI',
+        ownerEmail: 'risk@opspilot.dev',
+        purpose: 'Fraud scoring',
+      },
+    });
+
+    expect(noServiceRes.statusCode).toBe(201);
+    expect(noServiceRes.json().data.serviceId).toBeNull();
+
+    // Clean up test service
+    await db.service.delete({ where: { id: testService.id } });
+  });
+
   it('POST /api/v1/governance/assets/:id/lifecycle requires approval for promotion to APPROVED stage and populates requestedBySubject', async () => {
     // 1. Create asset
     const createRes = await app.inject({

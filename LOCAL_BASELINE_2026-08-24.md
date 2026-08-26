@@ -591,6 +591,50 @@ Working tree status: 100% clean (`nothing to commit, working tree clean`). Branc
    - Executed `pnpm test` -> **69/69 tests passed across 16 test files cleanly.**
 2. **Clean-Up:** Database `opspilot_clone_verify_db` dropped and `/tmp/opspilot-clone-verify` directory deleted.
 
+---
+
+## 16. Addendum: Sim 2.0 Batch 1 — GovernedAsset ↔ Service Linkage & Cleanup (2026-08-26)
+
+### 16.1 Database Migration (`20260826000000_add_governed_asset_service_link`)
+1. **Schema Additions (`prisma/schema.prisma`):**
+   - Added optional `serviceId String? @map("service_id")` and `service Service?` relation to `GovernedAsset` with `onDelete: SetNull`.
+   - Added `governedAssets GovernedAsset[]` array relation to `Service`.
+   - Created index `governed_assets_service_id_idx` on `governed_assets(service_id)`.
+2. **Database Application:**
+   - Authored migration SQL in `prisma/migrations/20260826000000_add_governed_asset_service_link/migration.sql`.
+   - Executed `npx prisma migrate deploy` on both `opspilot` (DEV DB) and `opspilot_test` (TEST DB). Regenerated Prisma Client v5.22.0.
+
+### 16.2 Governance & Reporting Updates
+1. **Governance Endpoints (`apps/api/src/modules/governance/governance.routes.ts`):**
+   - `POST /api/v1/governance/assets` accepts optional `serviceId`. Validates `serviceId` existence against `db.service`, returning `HTTP 400 INVALID_SERVICE_ID` if invalid.
+   - `GET /api/v1/governance/assets/:id` and `GET /api/v1/governance/assets` include linked service summary (`id`, `name`, `slug`).
+2. **Reporting Aggregation (`apps/api/src/modules/reporting/reporting.service.ts`):**
+   - `GovernanceReport` includes `highRiskAssets` array containing `serviceId` and `serviceName` for each high-risk asset.
+   - `ExecutiveReport` `topRisks` includes `serviceId` and `serviceName` under `details` for `GOVERNED_ASSET` and `DRIFT_EVENT` risk items.
+
+### 16.3 Integration & Unit Tests
+1. **Cross-Module Integration Test (`apps/api/src/modules/cross-module-integration.test.ts`):**
+   - Updated Step A to pass `serviceId` on asset creation and assert real FK linkage (`assetBody.data.serviceId === serviceId` & `assetBody.data.service.name === 'Credit Risk Microservice'`).
+2. **Governance Unit Tests (`apps/api/src/modules/governance/governance.routes.test.ts`):**
+   - Added test suite confirming valid `serviceId` creation succeeds and links cleanly, invalid `serviceId` returns `HTTP 400 INVALID_SERVICE_ID`, and omitted `serviceId` operates backward-compatibly with `serviceId: null`.
+
+### 16.4 Scratch File Cleanup
+- Checked codebase references via `grep_search`: zero references in scripts, package.json, or active code.
+- Removed stale scratch files `scratch/test_phase6_enterprise_identity.js` and `scratch/test_step7_step8_live_cloud_verification.js` which relied on removed `test-token-` auth bypasses.
+
+### 16.5 Verification Evidence
+1. **Automated Suite Runs (Executed Twice):**
+   - `pnpm install`: Clean (478 packages).
+   - `pnpm typecheck`: 11/11 packages passed.
+   - `pnpm build`: 11/11 packages built cleanly.
+   - `pnpm test`: **70/70 tests passed across 16 test files** on both pass 1 and pass 2.
+2. **Real API Walkthrough:**
+   - Minted dev token for `SECURITY_ADMIN` via `scripts/mint-dev-token.ts`.
+   - Created GovernedAsset `"Payment Risk Classifier v3"` linked to service `"cmt88tsh8000059gib1luby65"` (`Payment Gateway Core`) -> HTTP 201 Created with linked service details.
+   - Queried `GET /api/v1/reports/governance` -> `highRiskAssets` returned linked `"serviceId"` and `"serviceName": "Payment Gateway Core"`.
+   - Queried `GET /api/v1/reports/executive` -> `topRisks` returned linked `"serviceId"` and `"serviceName": "Payment Gateway Core"`.
+3. **Localhost-First Discipline:** Zero commits or pushes to remote/Railway. All changes committed locally.
+
 
 
 

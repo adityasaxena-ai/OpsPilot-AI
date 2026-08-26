@@ -108,6 +108,7 @@ describe('Cross-Module Integration Test — Full Lifecycle (Governance, Drift, A
         ownerEmail: 'risk-ai@opspilot.internal',
         purpose: 'Real-time credit decision scoring',
         systemPrompt: 'System prompt for credit risk prediction',
+        serviceId: serviceId,
       },
     });
 
@@ -116,6 +117,8 @@ describe('Cross-Module Integration Test — Full Lifecycle (Governance, Drift, A
     expect(assetBody.success).toBe(true);
     governedAssetId = assetBody.data.id;
     expect(governedAssetId).toBeDefined();
+    expect(assetBody.data.serviceId).toBe(serviceId);
+    expect(assetBody.data.service.name).toBe('Credit Risk Microservice');
 
     // -----------------------------------------------------------------------
     // STEP B: Drift & AI Incident Module — Create DriftMonitor, observe drift, and escalate to trigger AI Incident

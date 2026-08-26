@@ -33,6 +33,13 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
       },
       orderBy: { createdAt: 'desc' },
       include: {
+        service: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
         _count: {
           select: {
             riskAssessments: true,
@@ -54,11 +61,12 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
       ownerTeam: string;
       ownerEmail: string;
       purpose: string;
+      serviceId?: string;
       isProductionFacing?: boolean;
       dataSensitivity?: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'RESTRICTED_PII';
     };
   }>('/assets', { preHandler: requirePermission('GOVERNANCE_MANAGE') }, async (request, reply) => {
-    const { name, assetType, description, ownerTeam, ownerEmail, purpose, isProductionFacing, dataSensitivity } = request.body ?? {};
+    const { name, assetType, description, ownerTeam, ownerEmail, purpose, serviceId, isProductionFacing, dataSensitivity } = request.body ?? {};
 
     if (!name || !assetType || !description || !ownerTeam || !ownerEmail || !purpose) {
       return reply.status(400).send({
@@ -68,6 +76,19 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
           message: 'name, assetType, description, ownerTeam, ownerEmail, and purpose are required',
         },
       });
+    }
+
+    if (serviceId) {
+      const service = await db.service.findUnique({ where: { id: serviceId } });
+      if (!service) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'INVALID_SERVICE_ID',
+            message: `Service with id '${serviceId}' not found`,
+          },
+        });
+      }
     }
 
     const validAssetTypes: AssetType[] = ['MODEL', 'AGENT', 'PROMPT', 'KNOWLEDGE_SOURCE'];
@@ -101,8 +122,18 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
         ownerTeam,
         ownerEmail,
         purpose,
+        serviceId: serviceId ?? null,
         lifecycleStage: 'PROPOSED',
         riskLevel: initialRisk.riskLevel,
+      },
+      include: {
+        service: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
       },
     });
 
@@ -134,6 +165,7 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
           assetType: asset.assetType,
           lifecycleStage: asset.lifecycleStage,
           riskLevel: asset.riskLevel,
+          serviceId: asset.serviceId ?? null,
         },
       },
     });
@@ -151,6 +183,13 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
       const asset = await db.governedAsset.findUnique({
         where: { id: assetId },
         include: {
+          service: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
           riskAssessments: {
             orderBy: { createdAt: 'desc' },
           },

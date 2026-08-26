@@ -46,6 +46,15 @@ export interface GovernanceReport {
     byIncidentType: Record<string, number>;
     totalOpen: number;
   };
+  highRiskAssets: Array<{
+    id: string;
+    name: string;
+    assetType: string;
+    riskLevel: string;
+    lifecycleStage: string;
+    serviceId: string | null;
+    serviceName: string | null;
+  }>;
   recentGovernanceTransitions: Array<{
     id: string;
     action: string;
@@ -278,6 +287,24 @@ export async function getGovernanceReport(db: PrismaClient): Promise<GovernanceR
     openByType[item.incidentType] = item._count.id;
   }
 
+  // High-risk assets with linked service information
+  const highRiskAssetsRaw = await db.governedAsset.findMany({
+    where: { riskLevel: { in: ['CRITICAL', 'HIGH'] } },
+    include: { service: { select: { id: true, name: true } } },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+
+  const highRiskAssets = highRiskAssetsRaw.map((asset) => ({
+    id: asset.id,
+    name: asset.name,
+    assetType: asset.assetType,
+    riskLevel: asset.riskLevel,
+    lifecycleStage: asset.lifecycleStage,
+    serviceId: asset.serviceId ?? null,
+    serviceName: asset.service?.name ?? null,
+  }));
+
   // Recent governance lifecycle transitions from AuditLog
   const recentAuditLogs = await db.auditLog.findMany({
     where: { targetType: 'governed_asset' },
@@ -319,6 +346,7 @@ export async function getGovernanceReport(db: PrismaClient): Promise<GovernanceR
       byIncidentType: openByType,
       totalOpen,
     },
+    highRiskAssets,
     recentGovernanceTransitions,
   };
 }
@@ -369,6 +397,7 @@ export async function getExecutiveReport(db: PrismaClient, days: number = 30): P
   // 1. High/Critical GovernedAssets
   const highRiskAssets = await db.governedAsset.findMany({
     where: { riskLevel: { in: ['CRITICAL', 'HIGH'] } },
+    include: { service: { select: { id: true, name: true } } },
     take: 5,
     orderBy: { createdAt: 'desc' },
   });
@@ -385,6 +414,8 @@ export async function getExecutiveReport(db: PrismaClient, days: number = 30): P
         assetType: asset.assetType,
         ownerTeam: asset.ownerTeam,
         lifecycleStage: asset.lifecycleStage,
+        serviceId: asset.serviceId ?? null,
+        serviceName: asset.service?.name ?? null,
       },
       createdAt: asset.createdAt.toISOString(),
     });
@@ -393,7 +424,15 @@ export async function getExecutiveReport(db: PrismaClient, days: number = 30): P
   // 2. Active/Escalated Drift Events
   const escalatedDriftEvents = await db.driftEvent.findMany({
     where: { state: { in: ['ESCALATED', 'DRIFT_DETECTED', 'WARNING'] } },
-    include: { asset: { select: { name: true } } },
+    include: {
+      asset: {
+        select: {
+          name: true,
+          serviceId: true,
+          service: { select: { id: true, name: true } },
+        },
+      },
+    },
     take: 5,
     orderBy: { createdAt: 'desc' },
   });
@@ -413,6 +452,8 @@ export async function getExecutiveReport(db: PrismaClient, days: number = 30): P
         computedScore: drift.computedScore,
         threshold: drift.threshold,
         state: drift.state,
+        serviceId: drift.asset.serviceId ?? null,
+        serviceName: drift.asset.service?.name ?? null,
       },
       createdAt: drift.createdAt.toISOString(),
     });
