@@ -60,7 +60,20 @@ export async function buildApp() {
     contentSecurityPolicy: config.NODE_ENV === 'production',
   });
   await app.register(cors, {
-    origin: true,
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const allowedOrigins = [
+        config.WEB_URL,
+        'https://opspilotweb-production.up.railway.app',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5173',
+      ];
+      if (allowedOrigins.includes(origin)) {
+        return cb(null, true);
+      }
+      return cb(new Error('Not allowed by CORS'), false);
+    },
     credentials: true,
   });
   await app.register(rateLimit, {
