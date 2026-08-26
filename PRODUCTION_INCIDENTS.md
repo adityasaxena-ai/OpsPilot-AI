@@ -97,3 +97,28 @@ Two distinct, independent root causes were confirmed by empirical evidence:
 1. Log into [Neon Console](https://console.neon.tech).
 2. Unsuspend compute or upgrade compute time quota for project `ep-floral-block-azsrnzo6`.
 3. Alternatively, update `DATABASE_URL` environment variable on `@opspilot/api` service in Railway to point to an active database instance.
+
+---
+
+### 5. Resolution Update — Interim Stabilization (2026-08-26)
+
+To prevent resource exhaustion on Railway and ensure production defaults to demo data without continuous database writes, an interim stabilization patch was applied:
+
+1. **Simulator Tick Loop Environment Gating:**
+   - Updated `packages/config/src/index.ts` adding `SIMULATOR_TICK_INTERVAL_MS` to `@opspilot/config`.
+   - Local development (`NODE_ENV=development`) defaults to `15000` (15 seconds), preserving 100% of existing local dev experience.
+   - Production (`NODE_ENV=production`) defaults to `300000` (5 minutes = 300,000ms), reducing background database write transactions by **95%** (from 5,760 writes/day down to 288 writes/day). Setting `SIMULATOR_TICK_INTERVAL_MS=0` completely disables background tick writes.
+   - Updated `apps/api/src/modules/simulator/simulator.service.ts` to support `intervalMs <= 0` cleanly.
+
+2. **Default Telemetry Provider Gating (Mock/Demo Mode Default):**
+   - Updated `packages/config/src/index.ts` and `packages/telemetry/src/index.ts` to default `TELEMETRY_PROVIDER` to `'mock'` in `production` environment out of the box.
+   - Restarts and fresh deploys land on realistic demo data (`MockTelemetryProvider`) without requiring a manual `POST /telemetry/provider` call.
+   - Live OTel mode remains fully functional and selectable on demand.
+
+3. **Production Deployment Verification:**
+   - Set environment variables on Railway for `@opspilot/api`: `SIMULATOR_TICK_INTERVAL_MS=300000` and `TELEMETRY_PROVIDER=mock`.
+   - Pushed commit `166767b` to `origin/main` -> deployment succeeded on Railway.
+   - Verified `GET /api/v1/telemetry/status` returns `providerName: "mock"` and `status: "HEALTHY"`.
+   - Verified via Railway container logs that background tick write interval expanded from 15s to 300s.
+   - *Note:* Platform migration decision (Render or alternative) remains separate and pending.
+
