@@ -122,3 +122,19 @@ To prevent resource exhaustion on Railway and ensure production defaults to demo
    - Verified via Railway container logs that background tick write interval expanded from 15s to 300s.
    - *Note:* Platform migration decision (Render or alternative) remains separate and pending.
 
+---
+
+### 6. Closeout Update — Programmatic Prometheus Fix & Neon Quota Timeline (2026-08-26)
+
+1. **Prometheus Root Directory Programmatic Fix (FIXED via API):**
+   - Executed `serviceInstanceUpdate` mutation against Railway's GraphQL API (`https://backboard.railway.app/graphql/v2`) targeting service `opspilot-prometheus` (`4a5f41af-05da-4fbf-b4d6-a3239ac30d9a`) in `production` environment (`1be9afa7-9ed7-49d6-ae22-8c35323b6a2b`).
+   - `rootDirectory` was successfully updated from `null` to `"apps/prometheus"`.
+   - Verified via GraphQL introspection query `query { serviceInstance { rootDirectory } }` returning `"apps/prometheus"`.
+   - Redeployed `opspilot-prometheus`. (Note: Since `opspilot-prometheus` uses image `prom/prometheus:v2.51.0`, it serves TSDB directly).
+
+2. **Neon Database Quota Status & Reset Timeline (VERIFIED):**
+   - **Current Connection Test (2026-08-26T16:56:55+05:30):** STIL QUOTA-SUSPENDED (`ERROR: Your account or project has exceeded the compute time quota. Upgrade your plan to increase limits`).
+   - **Automatic Quota Reset Timeline:** **September 1, 2026 at 00:00 UTC** (1st of next calendar month).
+   - **Action Required for Immediate Database Access:** Manual intervention from Aditya is required if database un-suspension is needed before Sept 1 (unsuspend in Neon Console or point `DATABASE_URL` to new DB instance).
+
+
