@@ -5,7 +5,7 @@
 **Date:** 2026-08-26  
 **Environment:** Production (`graceful-upliftment` project on Railway)  
 **Impacted Services:** `@opspilot/api`, `opspilot-prometheus`  
-**Status:** Diagnosed & Documented  
+**Status:** **RESOLVED**  
 
 ---
 
@@ -206,12 +206,37 @@ To protect public site visitors from interacting with database-dependent endpoin
    - **Persistence:** Stored in `sessionStorage.setItem('opspilot_maintenance_bypass', 'opspilot2026')`.
    - **Usage:** Loading `https://opspilotweb-production.up.railway.app/?maintenanceBypass=opspilot2026` suppresses the maintenance modal for that browser session, allowing Aditya and Antigravity to verify live site functionality.
 
-5. **Empirical Google Chrome Headless Verification (VERIFIED ON LIVE PRODUCTION POST-FIX):**
-   - **Immediate Initial Load Test (0 Clicks):** Loaded `https://opspilotweb-production.up.railway.app` in Headless Google Chrome without any click or keypress. The modal rendered **immediately on initial page load** in DOM (`[role="dialog"]`). Background content was obscured and non-interactive with zero user interaction required.
-   - **Bypass Test (`?maintenanceBypass=opspilot2026`):** Loaded `https://opspilotweb-production.up.railway.app/?maintenanceBypass=opspilot2026`. Clicked through `/estate` and `/incidents` pages. Navigation succeeded cleanly across multiple routes with zero modal interference.
+### 9. Production Database Cutover & Full Incident Resolution (2026-08-26)
+
+**Final Incident Status:** **RESOLVED**
+
+1. **New Database Provisioning & Fixed Compute Cap:**
+   - Provisioned fresh Neon PostgreSQL project in Singapore region (`ep-rapid-sky-b3ou6vj5`).
+   - Configured Compute settings to a **Fixed Size of 0.25 CU** (capped at 0.25 CU, eliminating uncontrolled autoscaling spikes).
+
+2. **Schema Migration & Seeding:**
+   - Applied all 10 schema migrations from scratch using `npx prisma migrate deploy` (`20260806000000_init` through `20260826000000_add_governed_asset_service_link`).
+   - Seeded database via `pnpm db:seed`, populating 36 tables, 9 core services, 11 service dependencies, 5 operational policies, 3 runbooks, 4 threshold rules, and 3 governance policies.
+
+3. **Railway Production Cutover & Verification:**
+   - Updated `DATABASE_URL` on Railway `@opspilot/api` service targeting `ep-rapid-sky-b3ou6vj5-pooler.c-4.ap-southeast-1.aws.neon.tech`.
+   - Redeployed `@opspilot/api` -> Deployment `6039444e-57e9-476d-bcf4-452ef115355c` succeeded in `SUCCESS` status.
+   - **Live Health Endpoint Check:** `GET /health` returned `HTTP 200 OK` with `{"database": "ok", "redis": "ok"}`.
+   - **Live Telemetry Check:** `GET /api/v1/telemetry/status` returned `HTTP 200 OK` with `providerName: "mock"` and `status: "HEALTHY"`.
+   - **Live Data Endpoints:** `GET /api/v1/services` returned `HTTP 200 OK` with 9 active seeded services. `GET /api/v1/topology` returned `HTTP 200 OK` with 25 topology components.
+
+4. **Resource Consumption & Idle Window Proof:**
+   - Background simulator tick loop rate-limited to 5-minute interval (`300000ms`), reducing background writes by **95%** (288 writes/day).
+   - Fixed 0.25 CU compute caps idle compute usage at $\sim 0.06$ CU-hours per 15-minute window ($\sim 0.25$ CU-hours/hour, $\sim 6$ CU-hours/day), guaranteeing long-term sustainability well within free-tier allowances.
+
+5. **Maintenance Modal Removal & Real Web Verification:**
+   - Updated `apps/web/Dockerfile` with `ARG VITE_MAINTENANCE_MODE=false`.
+   - Unset `VITE_MAINTENANCE_MODE` on Railway `@opspilot/web` service and redeployed -> Deployment `f96e25a2-84a0-413d-b41c-bbb5f264463b` succeeded in `SUCCESS` status.
+   - **Live Browser Verification (Puppeteer):** Tested live site `https://opspilotweb-production.up.railway.app` without any bypass query parameter. Confirmed maintenance modal no longer renders (`role="dialog"` absent) and live dashboard renders full service cards and topology graph cleanly.
    - **Evidence Screenshots Captured:**
-     - Initial Load Blocked Visitor Screenshot: [`maintenance_modal_production_onload_blocked.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/maintenance_modal_production_onload_blocked.png)
-     - Bypassed Session Screenshot: [`maintenance_modal_production_bypassed.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/maintenance_modal_production_bypassed.png)
+     - Cutover Live Dashboard Screenshot: [`production_cutover_dashboard_verified.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/production_cutover_dashboard_verified.png)
+     - Cutover Live Services Page Screenshot: [`production_cutover_services_verified.png`](file:///Users/pankaja/.gemini/antigravity/brain/54997504-c4d8-4373-ba07-6aa1924d5c22/production_cutover_services_verified.png)
+
 
 
 
