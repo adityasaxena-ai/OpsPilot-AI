@@ -28,7 +28,10 @@ const envSchema = z.object({
     .string()
     .transform((v) => v === 'true')
     .default('true'),
-  SIMULATOR_TICK_INTERVAL_MS: z.coerce.number().int().default(15000),
+  SIMULATOR_TICK_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .default(() => (process.env.NODE_ENV === 'production' ? 300000 : 15000)),
 
   // Safety & Governance
   ENABLE_AUTONOMOUS_REMEDIATION: z
@@ -59,6 +62,9 @@ const envSchema = z.object({
   MAX_REMEDIATION_RISK_AUTONOMOUS: z.coerce.number().int().default(30),
 
   // Observability
+  TELEMETRY_PROVIDER: z
+    .enum(['otel', 'mock', 'replay'])
+    .default(() => (process.env.NODE_ENV === 'production' ? 'mock' : 'otel')),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 

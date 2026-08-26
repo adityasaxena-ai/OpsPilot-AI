@@ -152,6 +152,11 @@ let tickInterval: ReturnType<typeof setInterval> | null = null;
 export function startSimulatorTick(intervalMs = 15_000): void {
   if (tickInterval) return;
 
+  if (intervalMs <= 0) {
+    console.log('[Simulator] Tick loop is disabled (intervalMs <= 0)');
+    return;
+  }
+
   tickInterval = setInterval(async () => {
     try {
       await runTick();

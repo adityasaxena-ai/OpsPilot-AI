@@ -13,7 +13,9 @@ export * from './estate-topology.js';
 
 export type ProviderMode = 'otel' | 'mock' | 'replay';
 
-let currentMode: ProviderMode = (process.env['TELEMETRY_PROVIDER'] as ProviderMode) ?? 'otel';
+let currentMode: ProviderMode =
+  (process.env['TELEMETRY_PROVIDER'] as ProviderMode) ??
+  (process.env.NODE_ENV === 'production' ? 'mock' : 'otel');
 const replayProvider = new ReplayTelemetryProvider();
 const mockProvider = new MockTelemetryProvider();
 const otelProvider = new OpenTelemetryProvider();
