@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -62,6 +60,53 @@ services:
       - "9090:9090"
     depends_on:
       - otel-collector
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: opspilot-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://opspilot:opspilot@postgres:5432/opspilot?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: "example_shared_jwt_secret_min_32_bytes_long_string_for_dev_only"
+      WEB_URL: "http://localhost:3000"
+      TELEMETRY_PROVIDER: mock
+      SIMULATOR_TICK_INTERVAL_MS: 15000
+    command: >
+      sh -c "pnpm exec prisma migrate deploy --schema=prisma/schema.prisma &&
+             npx tsx scripts/seed.ts &&
+             node apps/api/dist/server.js"
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3001
+        VITE_MAINTENANCE_MODE: "false"
+    container_name: opspilot-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
 
 volumes:
   postgres_data:
