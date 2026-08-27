@@ -102,8 +102,11 @@ jobs:
       # turbo run test depends on ^build (already done above via pnpm build).
       # vitest.config.ts overrides DATABASE_URL → TEST_DATABASE_URL at runtime
       # and sets all ENABLE_* feature flags to true for the test suite.
+      # --force bypasses turbo's cache: test files are not tracked as build inputs
+      # by default, so without --force turbo serves stale cached results when only
+      # test files change — causing false greens. Always re-run tests fresh in CI.
       - name: Test
-        run: pnpm test
+        run: pnpm test -- --force
         env:
           DATABASE_URL: postgresql://opspilot:opspilot@localhost:5432/opspilot_test?sslmode=disable
           TEST_DATABASE_URL: postgresql://opspilot:opspilot@localhost:5432/opspilot_test?sslmode=disable
