@@ -47,7 +47,7 @@ describe('Incident Decision Support Engine', () => {
   it('decomposes overall incident risk score deterministically into 5 factors', () => {
     const result = buildIncidentDecisionSupport(mockIncident, rcaResult, mockChangeCorrelations, mockEvidenceList, ['Checkout API']);
 
-    expect(result.incidentId).toBe('DELIBERATE-BREAKAGE-FAILED'); // DELIBERATE BREAKAGE — CI failure proof, will be reverted
+    expect(result.incidentId).toBe('inc-dec-001');
     expect(result.riskAssessment.overallRiskScore).toBeGreaterThanOrEqual(60);
     expect(result.riskAssessment.factors.severity.score).toBe(30); // P1
     expect(result.riskAssessment.factors.changeCorrelation.score).toBe(23); // 92% of 25
