@@ -2,7 +2,7 @@
   "name": "opspilot",
   "version": "0.1.0",
   "private": true,
-  "description": "OpsPilot AI \u2014 Autonomous IT Operations Control Tower",
+  "description": "OpsPilot AI — Autonomous IT Operations Control Tower",
   "packageManager": "pnpm@11.20.0",
   "engines": {
     "node": ">=22.13.0",
@@ -26,13 +26,14 @@
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^9.8.0",
     "prettier": "^3.3.3",
-    "turbo": "^2.0.14",
+    "puppeteer": "^25.9.0",
     "tsx": "^4.16.5",
+    "turbo": "^2.0.14",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
   },
   "dependencies": {
-    "prisma": "^5.17.0",
-    "@prisma/client": "^5.17.0"
+    "@prisma/client": "^5.17.0",
+    "prisma": "^5.17.0"
   }
 }
