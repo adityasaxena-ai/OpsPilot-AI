@@ -101,10 +101,77 @@ To guarantee the pipeline actively catches regressions rather than acting as a p
 
 ---
 
+## Phase 2: Infrastructure as Code (Docker Compose Full Stack)
+
+### Compose Configuration (`docker-compose.yml`)
+- Extended `docker-compose.yml` to define full containerized stack:
+  - `postgres`: PostgreSQL 16 Alpine (`opspilot-postgres`, port `5432:5432`, healthcheck `pg_isready -U opspilot -d opspilot`).
+  - `redis`: Redis 7.2 Alpine (`opspilot-redis`, port `6379:6379`, healthcheck `redis-cli ping`).
+  - `otel-collector`: OpenTelemetry Collector Contrib (`opspilot-otel-collector`, ports `4317`, `4318`, `9464`).
+  - `prometheus`: Prometheus v2.53.1 (`opspilot-prometheus`, port `9090:9090`).
+  - `api`: Fastify backend container built from `apps/api/Dockerfile` (`opspilot-api`, port `3001:3001`).
+    - Container networking: `DATABASE_URL=postgresql://opspilot:opspilot@postgres:5432/opspilot?sslmode=disable`, `REDIS_URL=redis://redis:6379`.
+    - Automatic initialization: Container command executes `pnpm exec prisma migrate deploy --schema=prisma/schema.prisma && npx tsx scripts/seed.ts && node apps/api/dist/server.js`.
+    - Healthcheck: `node -e "fetch('http://localhost:3001/health')..."` (Node 22 native fetch).
+    - `depends_on`: `postgres` (`service_healthy`), `redis` (`service_healthy`).
+  - `web`: React / Vite UI container built from `apps/web/Dockerfile` (`opspilot-web`, port `3000:3000`).
+    - Build args: `VITE_API_URL=http://localhost:3001`, `VITE_MAINTENANCE_MODE=false`.
+    - `depends_on`: `api` (`service_healthy`).
+
+---
+
+### Direct Host-Run Workflow Preservation (Step 2 Regression Audit)
+- **Host Execution:** Executed `pnpm --filter @opspilot/api exec tsx src/server.ts` directly on host Node.js (bypassing Docker API container, connecting to local `localhost:5432` PostgreSQL & `localhost:6379` Redis containers).
+- **Verification (`curl http://localhost:3001/health`):**
+  ```json
+  {
+    "status": "ok",
+    "health": "healthy",
+    "version": "0.1.0",
+    "timestamp": "2026-08-27T17:39:46.993Z",
+    "dependencies": {
+      "database": "ok",
+      "redis": "ok"
+    }
+  }
+  ```
+- **Result:** Direct host-run workflow functions cleanly alongside Docker Compose containerized stack.
+
+---
+
+### Fresh Clone One-Command Verification (Step 3 Proof)
+1. **Isolated Clone:** Cloned main repository to throwaway directory `/tmp/opspilot-fresh-clone-test`.
+2. **Environment Setup:** Copied `.env.example` to `.env` (zero manual edits).
+3. **Execution:** Executed `docker compose up --build -d`.
+4. **Automated Initialization:**
+   - Database migrations applied cleanly (`prisma migrate deploy`).
+   - Domain seed executed (`scripts/seed.ts` populated 9 services, topology nodes/edges, and initial simulation state).
+   - All 6 containers reached `Up (healthy)` state.
+5. **Host Curl Responses (External Network Verification):**
+   - **`GET http://localhost:3001/health`:**
+     ```json
+     {
+       "status": "ok",
+       "health": "healthy",
+       "version": "0.1.0",
+       "timestamp": "2026-08-27T17:47:39.955Z",
+       "dependencies": {
+         "database": "ok",
+         "redis": "ok"
+       }
+     }
+     ```
+   - **`GET http://localhost:3001/api/v1/services`:** Returned 9 seeded services with full simulation state objects.
+   - **`GET http://localhost:3000` (Web UI):** HTTP 200 OK (`Vary: Origin`, `Content-Type: text/html`).
+6. **Teardown:** Ran `docker compose down -v` and removed `/tmp/opspilot-fresh-clone-test`.
+
+---
+
 ## Phase Summary & Status
 
 | Phase | Description | Status |
 |---|---|---|
 | **Phase 1** | CI/CD Pipeline (`ci.yml`, Fail/Pass Proof, PR #1 Merged) | **COMPLETED** |
-| **Phase 2** | Staging Environment Setup | *Pending* |
+| **Phase 2** | Infrastructure as Code (Full Stack Compose, Fresh Clone Verified) | **COMPLETED** |
 | **Phase 3** | Operational Hardening & Chaos Testing | *Pending* |
+

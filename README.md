@@ -97,40 +97,59 @@ OpsPilot AI is configured for easy zero-cost deployment to public cloud services
 
 ## 💻 Local Quick Start
 
-### 1. Prerequisites
-- **Node.js**: v20.0.0 or higher
-- **pnpm**: v9.0.0 or higher (`npm install -g pnpm`)
-- **Docker** (Optional for live PostgreSQL / Redis): Docker Desktop
+### Prerequisites
+- **Node.js**: v22.13.0 or higher
+- **pnpm**: v11.20.0 or higher (`npm install -g pnpm`)
+- **Docker**: Docker Desktop (`docker compose`)
 
-### 2. First-Time Setup Sequence
+---
+
+### Option A: One-Command Full Stack (Docker Compose)
+
+Run the entire OpsPilot AI stack (PostgreSQL, Redis, OpenTelemetry Collector, Prometheus, API backend, and Web UI) inside Docker with a single command — zero manual setup beyond copying `.env`.
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/opspilot-ai.git
-cd opspilot-ai
-
-# 2. Install dependencies across all 11 workspace packages
-pnpm install
-
-# 3. Start local Docker containers for PostgreSQL and Redis
-docker-compose up -d
-
-# 4. Copy environment file
+# 1. Clone repository and set up environment file
+git clone https://github.com/adityasaxena-ai/OpsPilot-AI.git
+cd OpsPilot-AI
 cp .env.example .env
 
-# 5. Push Prisma Schema to database
-pnpm db:push
+# 2. Spin up full application stack with automatic migrations and seed data
+docker compose up --build -d
+```
 
-# 6. Seed initial microservices, topology, and default threshold rules
+Database migrations and initial domain seeding (`prisma migrate deploy` & `scripts/seed.ts`) execute automatically inside the container on startup.
+
+- 🌐 **Web Control Tower UI**: [http://localhost:3000](http://localhost:3000)
+- ⚙️ **Fastify API Server**: [http://localhost:3001](http://localhost:3001)
+- 📊 **Prometheus Server**: [http://localhost:9090](http://localhost:9090)
+
+---
+
+### Option B: Direct Local Dev (Host Node.js + Local DB)
+
+Ideal for rapid iterative development on host Node.js with hot reloading.
+
+```bash
+# 1. Clone repository and install dependencies
+git clone https://github.com/adityasaxena-ai/OpsPilot-AI.git
+cd OpsPilot-AI
+pnpm install
+
+# 2. Start local PostgreSQL and Redis containers only
+docker compose up -d postgres redis
+
+# 3. Copy environment file and setup database schema & seed data
+cp .env.example .env
+pnpm db:migrate
 pnpm db:seed
 
-# 7. Start API backend and Web frontend dev servers
+# 4. Start API backend and Web frontend dev servers
 pnpm dev
 ```
 
-The application will be accessible at:
-* 🌐 **Web Control Tower UI**: [http://localhost:3000](http://localhost:3000)
-* ⚙️ **Fastify API Server**: [http://localhost:3001](http://localhost:3001)
+- 🌐 **Web Control Tower UI**: [http://localhost:3000](http://localhost:3000)
+- ⚙️ **Fastify API Server**: [http://localhost:3001](http://localhost:3001)
 
 ---
 
