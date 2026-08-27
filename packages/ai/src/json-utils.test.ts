@@ -36,7 +36,7 @@ describe('json-utils', () => {
     const raw = `{"keyFindings":["f1"],"suspectedComponents":["c1"],"confidence":0.9,"timelineSummary":"t1","reasoning":"r1"}`;
     const result = parseAndValidateLlmJson(raw, TestSchema);
     expect(result).toBeDefined();
-    expect(result?.confidence).toBe(0.9);
+    expect(result?.confidence).toBe(999); // DELIBERATE BREAKAGE — CI failure proof, will be reverted
   });
 
   it('b. handles ```json ... ``` markdown fenced JSON', () => {
