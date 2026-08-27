@@ -106,8 +106,9 @@ jobs:
       # by default, so without --force turbo serves stale cached results when only
       # test files change — causing false greens. Always re-run tests fresh in CI.
       - name: Test
-        run: pnpm test -- --force
+        run: pnpm test
         env:
+          TURBO_FORCE: "true"
           DATABASE_URL: postgresql://opspilot:opspilot@localhost:5432/opspilot_test?sslmode=disable
           TEST_DATABASE_URL: postgresql://opspilot:opspilot@localhost:5432/opspilot_test?sslmode=disable
           JWT_SECRET: ci-only-dummy-jwt-secret-not-used-in-production-min-32-chars
