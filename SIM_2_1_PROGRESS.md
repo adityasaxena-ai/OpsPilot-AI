@@ -181,7 +181,7 @@ To guarantee the pipeline actively catches regressions rather than acting as a p
 ## Pre-Phase 3: Security Shift-Left Retrofit
 
 **Branch:** `security/shift-left`
-**Status:** ✅ Complete, CI-verified — ready for PR review
+**Status:** ✅ Complete, CI-verified — PR #2 open ([#2](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/2))
 **Commit:** _(see `git log -1 --oneline` on this branch, or the PR's merge commit)_
 
 ### Threat Model
