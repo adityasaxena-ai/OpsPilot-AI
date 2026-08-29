@@ -49,6 +49,8 @@ jobs:
       # ── 1. Checkout ─────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # ── 2. Setup pnpm (must come before setup-node to enable caching) ───────
       - name: Setup pnpm
