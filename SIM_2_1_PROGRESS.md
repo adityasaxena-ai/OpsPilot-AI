@@ -180,91 +180,55 @@ To guarantee the pipeline actively catches regressions rather than acting as a p
 
 ## Pre-Phase 3: Security Shift-Left Retrofit
 
-**Branch:** `security/shift-left`  
-**Status:** ✅ COMPLETE — ready for PR review  
-**Commit:** `828396d`
+**Branch:** `security/shift-left`
+**Status:** ✅ Complete, CI-verified — ready for PR review
+**Commit:** `da45d22`
 
 ### Threat Model
-See `THREAT_MODEL.md` for the full risk register (R-01 through R-10).
-10 risks identified; 8 addressed in this retrofit (R-01→R-06, R-05, R-08 via report-only).
+See `THREAT_MODEL_SECURITY_RETROFIT.md` for the full risk register (R-01
+through R-10), attack surface breakdown, and trust boundaries.
+
+### Authorization Audit
+See `AUTHZ_AUDIT.md` for the complete route-by-route protection table
+(98 endpoints across 21 route modules, cross-checked against
+`apps/api/src/app.ts` plugin registration).
 
 ### Changes Made
 
-#### CI Security Scanning (report-only first run)
-- `.github/workflows/ci.yml`: Added `pnpm audit --audit-level=high` (step 9, `|| true`)
-- `.github/workflows/ci.yml`: Added `gitleaks/gitleaks-action@v2` (step 10, `continue-on-error: true`)
-- `.gitleaks.toml`: Allowlist for known CI-dummy JWT_SECRET values
-
-**Baseline findings from `pnpm audit`:**
-```
-1 critical | 5 high | 8 moderate | 1 low  (15 total)
-- Critical: 1 (transitive via vitest/vite)
-- High: find-my-way (fastify router) DDoS via HTTP2 → patched in find-my-way 9.6.1
-- High: @fastify/static path traversal → patched in 10.1.1
-- High: nanoid, vite, others (all in dev/test deps, not production)
-```
-Next step: apply `pnpm update` to patch these, then remove `|| true` to enforce.
-
 #### Auth Enforcement (R-01 through R-04)
-Added `requirePermission()` guards to 14 previously-unprotected mutation endpoints:
-- **Simulator** (POST chaos/heal/deploy): `REMEDIATION_EXECUTE` (INCIDENT_COMMANDER only)
-- **Rules** (POST/PUT/DELETE): `REMEDIATION_APPROVE` (SRE_OPERATOR+)
-- **Telemetry mutations** (provider/record/replay): `ADMIN_CONFIGURATION` (SECURITY_ADMIN only)
-- **Alerts PATCH**: `INCIDENT_VIEW` (any authenticated user)
-- **Incidents PATCH**: `INCIDENT_VIEW` / `REMEDIATION_APPROVE`
-- **Events POST**: `INCIDENT_VIEW` (any authenticated user)
+`requirePermission()` guards added to 14 previously-unprotected mutation
+endpoints:
+- **Simulator** (`POST /chaos`, `/heal`, `/deploy`): `REMEDIATION_EXECUTE` (INCIDENT_COMMANDER)
+- **Rules** (`POST`/`PUT`/`DELETE`): `REMEDIATION_APPROVE` (SRE_OPERATOR+)
+- **Telemetry mutations** (`provider`/`record`/`replay`): `ADMIN_CONFIGURATION` (SECURITY_ADMIN)
+- **Alerts** `PATCH`: `INCIDENT_VIEW`
+- **Incidents** `PATCH`: `INCIDENT_VIEW` / `REMEDIATION_APPROVE`
+- **Events** `POST`: `INCIDENT_VIEW`
 
 #### Rate Limit Tightening (R-06)
-- Global limit: 500 → **200 req/min** per IP
-- Simulator POSTs: additional **30 req/min** per-route override
+- Global limit: 500 → 200 req/min per IP
+- Simulator POST routes: additional 30 req/min per-route override
 
 #### Production Safety Guard (R-05)
-- `auth.middleware.ts`: process.exit(1) if `ENABLE_DEMO_AUTH=true` in production
+- `auth.middleware.ts`: process exits on startup if `ENABLE_DEMO_AUTH=true`
+  while `NODE_ENV=production`
 
-#### Documentation
-- `AUTHZ_AUDIT.md`: Full per-route audit table with RBAC matrix
+#### CI Security Scanning (report-only baseline)
+- `pnpm audit --audit-level=high` added to `ci.yml` (`|| true` — report-only
+  until the flagged transitive-dep CVEs are patched)
+- `gitleaks/gitleaks-action@v2` added to `ci.yml` (`continue-on-error: true`)
+- `.gitleaks.toml` allowlists documented CI-only dummy JWT secret values
 
-### Verification (Real Evidence — Rule 3 Compliant)
-```
-Typecheck: ✅ 0 errors
-Tests: ✅ 70/70 pass (16 test files, TURBO_FORCE=true)
+### Verification
 
-Live curl probes (NODE_ENV=production, no auth):
-  POST /api/v1/simulator/chaos  →  401 AUTHENTICATION_REQUIRED  ✅
-  DELETE /api/v1/rules/any-id   →  401 AUTHENTICATION_REQUIRED  ✅
-  POST /api/v1/telemetry/provider → 401 AUTHENTICATION_REQUIRED ✅
-  PATCH /api/v1/incidents/id    →  401 AUTHENTICATION_REQUIRED  ✅
+CI run for this commit (Typecheck → Build → Test are hard-fail steps, run
+before the report-only audit/gitleaks steps): https://github.com/adityasaxena-ai/OpsPilot-AI/actions/workflows/ci.yml?query=branch%3Asecurity%2Fshift-left
 
-Live curl probes (NODE_ENV=development, X-Operator-Id):
-  INCIDENT_COMMANDER role → POST /simulator/chaos → auth passed (400 body validation) ✅
-  SRE_OPERATOR role → POST /simulator/chaos → 403 INSUFFICIENT_PERMISSION ✅
-  INCIDENT_COMMANDER role → POST /rules → 201 Created ✅
-  GET /api/v1/alerts (no auth) → 200 OK (intentionally public) ✅
-```
+Live auth/rate-limit probes: raw terminal output saved at
+[`security/live_probes_verification.log`](file:///Users/pankaja/AI%20Projects/OpsAI/security/live_probes_verification.log)
 
-### Open Items (follow-on)
-- [ ] Inspect `ai.routes.ts` — no auth guards detected, needs follow-on PR
-- [ ] `pnpm update` to patch the 5 high-severity transitive deps, then enforce audit
-- [ ] Enable gitleaks enforcement once baseline allowlist is confirmed complete
-
----
-
-## Pre-Phase 3 Security Shift-Left Retrofit — Verification & Evidence
-
-**Branch:** `security/shift-left`  
-**Latest Commit:** `d895f49`  
-**Status:** ✅ ALL VALIDATION REQUIREMENTS SATISFIED WITH EMPIRICAL EVIDENCE
-
-### 1. Mandatory Rule #3 Evidence Matrix
-
-| Claim | Required Evidence Type | Empirical Observed Evidence |
-|---|---|---|
-| **"Route X now requires auth"** | Live curl HTTP probe showing 401/403 unauthenticated, 200/201 with valid token | **Observed via live curl against `http://localhost:3001`:**<br>• `POST /api/v1/simulator/chaos` (no auth) → `HTTP 401 AUTHENTICATION_REQUIRED`<br>• `DELETE /api/v1/rules/any-id` (no auth) → `HTTP 401 AUTHENTICATION_REQUIRED`<br>• `POST /api/v1/telemetry/provider` (no auth) → `HTTP 401 AUTHENTICATION_REQUIRED`<br>• `POST /api/v1/simulator/chaos` (`X-Operator-Id: dev-user-sre`) → `HTTP 403 INSUFFICIENT_PERMISSION` ("Principal 'dev-user-sre' lacks required permission 'REMEDIATION_EXECUTE'")<br>• `POST /api/v1/simulator/chaos` (`X-Operator-Id: dev-incident-commander`) → `Auth Passed` (returns 201/400 body validation)<br>• `GET /api/v1/alerts` (no auth) → `HTTP 200 OK` (intentionally public read) |
-| **"CI scanning runs"** | Workflow execution trigger & step log | **GitHub Actions CI triggered on push to `security/shift-left`:**<br>• Workflow: `.github/workflows/ci.yml`<br>• Step 9: `Dependency audit (report-only)` executing `pnpm audit --audit-level=high`<br>• Step 10: `Secret scan — gitleaks (report-only)` executing `gitleaks-action@v2` with `.gitleaks.toml` allowlist |
-| **"Rate limit enforced"** | Live probe exceeding limit observing HTTP 429 | **Observed live HTTP 429 probe against `POST /api/v1/simulator/chaos` (limit: 30 req/min):**<br>• Rapid requests 1 through 30 → `HTTP 400` (passed rate limit, hit body parser)<br>• Rapid request 31+ → `HTTP 429` with response body:<br>`{"statusCode":429,"error":"Too Many Requests","message":"Rate limit exceeded, retry in 1 minute"}` |
-| **"No routes were missed"** | Full route table cross-checked against router registration count | **100% Exact Cross-Check:**<br>• `apps/api/src/app.ts`: **21 registered Fastify plugins**<br>• `apps/api/src/modules/**/*.routes.ts`: **98 route handlers** across 21 files<br>• Documented and mapped 1-to-1 in `THREAT_MODEL_SECURITY_RETROFIT.md` and `AUTHZ_AUDIT.md` |
-
-### 2. Artifacts Created & Committed to Repo
-- `THREAT_MODEL_SECURITY_RETROFIT.md` (Risk register R-01 to R-10, attack surfaces, trust boundaries)
-- `AUTHZ_AUDIT.md` (98-route protection status table, RBAC matrix)
-- `.gitleaks.toml` (Allowlist for documented test-only dummy credentials)
+### Open Items (follow-on, not blocking this PR)
+- [ ] `ai.routes.ts` — no auth guards detected, needs its own pass
+- [ ] `pnpm update` to patch the 5 high-severity transitive deps (find-my-way,
+      @fastify/static, vite/vitest chain), then remove `|| true` to enforce
+- [ ] Enable gitleaks hard-fail once baseline allowlist is confirmed complete
