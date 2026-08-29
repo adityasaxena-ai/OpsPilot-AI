@@ -182,7 +182,7 @@ To guarantee the pipeline actively catches regressions rather than acting as a p
 
 **Branch:** `security/shift-left`
 **Status:** ✅ Complete, CI-verified — ready for PR review
-**Commit:** `da45d22`
+**Commit:** `3e05d6a`
 
 ### Threat Model
 See `THREAT_MODEL_SECURITY_RETROFIT.md` for the full risk register (R-01
