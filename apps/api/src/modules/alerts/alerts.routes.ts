@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { db } from '../../lib/db.js';
 import type { AlertStatus } from '@opspilot/types';
+import { requirePermission } from '../auth/auth.middleware.js';
 
 export const alertsRoutes: FastifyPluginAsync = async (app) => {
   // GET /api/v1/alerts
@@ -52,9 +53,10 @@ export const alertsRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: alert };
   });
 
-  // PATCH /api/v1/alerts/:id — acknowledge or suppress
+  // PATCH /api/v1/alerts/:id — acknowledge or suppress (requires authentication)
   app.patch<{ Params: { id: string }; Body: { status: AlertStatus } }>(
     '/:id',
+    { preHandler: requirePermission('INCIDENT_VIEW') },
     async (request, reply) => {
       const { status } = request.body;
       const allowed: AlertStatus[] = ['ACKNOWLEDGED', 'SUPPRESSED', 'RESOLVED'];

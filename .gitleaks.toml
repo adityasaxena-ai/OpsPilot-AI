@@ -1,0 +1,22 @@
+title = "OpsPilot gitleaks configuration"
+
+[allowlist]
+  description = "Known CI-only dummy values that are intentionally hardcoded in non-secret files"
+  regexTarget = "line"
+
+  # These are CI-only dummy JWT_SECRET values — NOT real secrets.
+  # They exist in ci.yml and vitest.config.ts to satisfy the config schema
+  # min-length validation during typecheck/test in CI. They never sign real tokens.
+  regexes = [
+    # ci.yml and vitest.config.ts test-only dummy
+    '''ci-only-dummy-jwt-secret-not-used-in-production-min-32-chars''',
+    # .env.example placeholder (documentation only)
+    '''example_shared_jwt_secret_min_32_bytes_long_string_for_dev_only''',
+  ]
+
+  # Paths that are safe to scan past — these contain intentional example/dummy values
+  paths = [
+    '''.env.example''',
+    '''.github/workflows/ci.yml''',
+    '''vitest.config.ts''',
+  ]

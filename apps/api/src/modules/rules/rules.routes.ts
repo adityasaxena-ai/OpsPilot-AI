@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { db } from '../../lib/db.js';
+import { requirePermission } from '../auth/auth.middleware.js';
 
 export const rulesRoutes: FastifyPluginAsync = async (app) => {
   // GET /api/v1/rules — List all threshold rules
@@ -11,7 +12,7 @@ export const rulesRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: rules };
   });
 
-  // POST /api/v1/rules — Create a threshold rule
+  // POST /api/v1/rules — Create a threshold rule (requires REMEDIATION_APPROVE)
   app.post<{
     Body: {
       name: string;
@@ -23,7 +24,7 @@ export const rulesRoutes: FastifyPluginAsync = async (app) => {
       serviceId?: string;
       isEnabled?: boolean;
     };
-  }>('/', async (request, reply) => {
+  }>('/', { preHandler: requirePermission('REMEDIATION_APPROVE') }, async (request, reply) => {
     const { name, metric, operator, threshold, durationSec, severity, serviceId, isEnabled } = request.body;
 
     if (!name || !metric || !operator || threshold === undefined) {
@@ -50,7 +51,7 @@ export const rulesRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(201).send({ success: true, data: rule });
   });
 
-  // PUT /api/v1/rules/:id — Update a threshold rule
+  // PUT /api/v1/rules/:id — Update a threshold rule (requires REMEDIATION_APPROVE)
   app.put<{
     Params: { id: string };
     Body: {
@@ -63,7 +64,7 @@ export const rulesRoutes: FastifyPluginAsync = async (app) => {
       serviceId?: string;
       isEnabled?: boolean;
     };
-  }>('/:id', async (request, reply) => {
+  }>('/:id', { preHandler: requirePermission('REMEDIATION_APPROVE') }, async (request, reply) => {
     const { id } = request.params;
     const { name, metric, operator, threshold, durationSec, severity, serviceId, isEnabled } = request.body;
 
@@ -90,8 +91,8 @@ export const rulesRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: updated };
   });
 
-  // DELETE /api/v1/rules/:id — Delete a threshold rule
-  app.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
+  // DELETE /api/v1/rules/:id — Delete a threshold rule (requires REMEDIATION_APPROVE)
+  app.delete<{ Params: { id: string } }>('/:id', { preHandler: requirePermission('REMEDIATION_APPROVE') }, async (request, reply) => {
     const { id } = request.params;
 
     const existing = await db.thresholdRule.findUnique({ where: { id } });

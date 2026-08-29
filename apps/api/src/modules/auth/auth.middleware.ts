@@ -4,6 +4,17 @@ import type { AuthenticatedPrincipal, Permission, Role } from './auth.types.js';
 import { hasPermission } from './rbac.service.js';
 import { parseJwt } from './jwt.service.js';
 
+// ── Production safety guard ────────────────────────────────────────────────
+// ENABLE_DEMO_AUTH=true bypasses the full auth layer and must NEVER be set
+// in a production environment. Crash early on startup if it is detected.
+if (process.env.NODE_ENV === 'production' && process.env['ENABLE_DEMO_AUTH'] === 'true') {
+  console.error(
+    '\n[SECURITY] FATAL: ENABLE_DEMO_AUTH=true is not permitted when NODE_ENV=production.\n' +
+    '          This env var bypasses authentication entirely. Remove it from Railway env vars.\n',
+  );
+  process.exit(1);
+}
+
 declare module 'fastify' {
   interface FastifyRequest {
     user?: AuthenticatedPrincipal;

@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { CanonicalEventSchema } from '@opspilot/types';
 import { ingestEvent } from './event.service.js';
 import { db } from '../../lib/db.js';
+import { requirePermission } from '../auth/auth.middleware.js';
 
 export const eventsRoutes: FastifyPluginAsync = async (app) => {
-  // POST /api/v1/events — ingest a canonical event
-  app.post('/', async (request, reply) => {
+  // POST /api/v1/events — ingest a canonical event (requires authentication)
+  app.post('/', { preHandler: requirePermission('INCIDENT_VIEW') }, async (request, reply) => {
     const result = CanonicalEventSchema.safeParse(request.body);
 
     if (!result.success) {

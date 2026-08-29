@@ -7,6 +7,7 @@ import {
   ProviderMode,
 } from '@opspilot/telemetry';
 import { redis } from '../../lib/redis.js';
+import { requirePermission } from '../auth/auth.middleware.js';
 
 const REDIS_KEY = 'opspilot:telemetry:mode';
 
@@ -85,11 +86,11 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: effectiveStatus };
   });
 
-  // POST /api/v1/telemetry/provider — Explicit operator override
+  // POST /api/v1/telemetry/provider — Explicit operator override (requires ADMIN_CONFIGURATION)
   // Switches the active provider and persists to Redis.
   // Note: setting 'otel' when OTel is unavailable will auto-correct on the
   // next GET /status call — use this intentionally to test OTel connectivity.
-  app.post<{ Body: { provider: ProviderMode } }>('/provider', async (request, reply) => {
+  app.post<{ Body: { provider: ProviderMode } }>('/provider', { preHandler: requirePermission('ADMIN_CONFIGURATION') }, async (request, reply) => {
     const { provider } = request.body ?? {};
 
     if (provider !== 'mock' && provider !== 'replay' && provider !== 'otel') {
@@ -105,9 +106,10 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: status };
   });
 
-  // POST /api/v1/telemetry/demo/override — Live demo metric override
+  // POST /api/v1/telemetry/demo/override — Live demo metric override (requires ADMIN_CONFIGURATION)
   app.post<{ Body: { serviceName: string; rps?: number; errorRate?: number; latencyP99?: number } }>(
     '/demo/override',
+    { preHandler: requirePermission('ADMIN_CONFIGURATION') },
     async (request) => {
       const { globalOtelEmitter } = await import('@opspilot/telemetry');
       const { serviceName, rps, errorRate, latencyP99 } = request.body ?? {};
@@ -130,8 +132,8 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // POST /api/v1/telemetry/record/start — Start recording live telemetry frames
-  app.post<{ Body: { title?: string } }>('/record/start', async (request) => {
+  // POST /api/v1/telemetry/record/start — Start recording live telemetry frames (requires ADMIN_CONFIGURATION)
+  app.post<{ Body: { title?: string } }>('/record/start', { preHandler: requirePermission('ADMIN_CONFIGURATION') }, async (request) => {
     const { title } = request.body ?? {};
     const replay = getReplayProvider();
     replay.startRecording(title ?? 'Live Telemetry Stream Snapshot');
@@ -145,8 +147,8 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
     };
   });
 
-  // POST /api/v1/telemetry/record/stop — Stop recording and save snapshot
-  app.post('/record/stop', async () => {
+  // POST /api/v1/telemetry/record/stop — Stop recording and save snapshot (requires ADMIN_CONFIGURATION)
+  app.post('/record/stop', { preHandler: requirePermission('ADMIN_CONFIGURATION') }, async () => {
     const replay = getReplayProvider();
     const recording = replay.stopRecording();
 
@@ -159,8 +161,8 @@ export const telemetryRoutes: FastifyPluginAsync = async (app) => {
     };
   });
 
-  // POST /api/v1/telemetry/replay/start — Start replaying loaded recording
-  app.post('/replay/start', async () => {
+  // POST /api/v1/telemetry/replay/start — Start replaying loaded recording (requires ADMIN_CONFIGURATION)
+  app.post('/replay/start', { preHandler: requirePermission('ADMIN_CONFIGURATION') }, async () => {
     await persistProviderMode('replay');
 
     const replay = getReplayProvider();
