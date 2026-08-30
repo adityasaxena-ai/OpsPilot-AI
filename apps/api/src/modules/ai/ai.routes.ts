@@ -6,12 +6,15 @@ import { db } from '../../lib/db.js';
 import { computeChangeCorrelation } from './change-correlation.service.js';
 import { buildRcaInvestigation } from './rca-engine.service.js';
 import { buildIncidentDecisionSupport } from './decision-engine.service.js';
+import { requirePermission } from '../auth/auth.middleware.js';
 
 export const aiRoutes: FastifyPluginAsync = async (app) => {
+
   const orchestrator = new AIOrchestrator(db);
 
   // POST /api/v1/ai/triage — Trigger AI Triage for an incident
-  app.post<{ Body: { incidentId: string } }>('/triage', async (request, reply) => {
+  app.post<{ Body: { incidentId: string } }>('/triage', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+
     const { incidentId } = request.body;
     if (!incidentId) {
       return reply.status(400).send({ success: false, error: { code: 'MISSING_PARAM', message: 'incidentId required' } });
@@ -32,7 +35,8 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // GET /api/v1/ai/investigate/stream/:incidentId — SSE Live Investigation Stream
-  app.get<{ Params: { incidentId: string } }>('/investigate/stream/:incidentId', async (request, reply) => {
+  app.get<{ Params: { incidentId: string } }>('/investigate/stream/:incidentId', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+
     const { incidentId } = request.params;
 
     const incident = await db.incident.findUnique({
@@ -113,7 +117,8 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/ai/investigate — Trigger Full AI Pipeline (Triage -> Evidence -> Investigation -> RCA)
-  app.post<{ Body: { incidentId: string } }>('/investigate', async (request, reply) => {
+  app.post<{ Body: { incidentId: string } }>('/investigate', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+
     const { incidentId } = request.body;
     if (!incidentId) {
       return reply.status(400).send({ success: false, error: { code: 'MISSING_PARAM', message: 'incidentId required' } });
@@ -129,7 +134,8 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/ai/postmortem — Generate AI Postmortem for resolved incident
-  app.post<{ Body: { incidentId: string } }>('/postmortem', async (request, reply) => {
+  app.post<{ Body: { incidentId: string } }>('/postmortem', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+
     const { incidentId } = request.body ?? {};
     if (!incidentId) {
       return reply.status(400).send({ success: false, error: { code: 'MISSING_PARAM', message: 'incidentId required' } });
@@ -160,7 +166,8 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/ai/chat — AI Copilot interactive assistant
-  app.post<{ Body: { message: string; incidentId?: string } }>('/chat', async (request, reply) => {
+  app.post<{ Body: { message: string; incidentId?: string } }>('/chat', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+
     const { message, incidentId } = request.body;
     if (!message) {
       return reply.status(400).send({ success: false, error: { code: 'MISSING_PARAM', message: 'message required' } });
@@ -197,7 +204,8 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // GET /api/v1/ai/copilot/:incidentId — AI Incident Copilot summary & decision engine data
-  app.get<{ Params: { incidentId: string } }>('/copilot/:incidentId', async (request, reply) => {
+  app.get<{ Params: { incidentId: string } }>('/copilot/:incidentId', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+
     const { incidentId } = request.params;
 
     const incident = await db.incident.findUnique({
@@ -418,7 +426,8 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // GET /api/v1/ai/investigations/:incidentId — Get AI investigation history for an incident
-  app.get<{ Params: { incidentId: string } }>('/investigations/:incidentId', async (request) => {
+  app.get<{ Params: { incidentId: string } }>('/investigations/:incidentId', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request) => {
+
     const investigations = await db.investigation.findMany({
       where: { incidentId: request.params['incidentId'] },
       orderBy: { createdAt: 'desc' },
@@ -428,7 +437,8 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/ai/summarize-timeline — AI Incident Timeline Summarizer
-  app.post<{ Body: { incidentId: string } }>('/summarize-timeline', async (request, reply) => {
+  app.post<{ Body: { incidentId: string } }>('/summarize-timeline', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+
     const { incidentId } = request.body ?? {};
     if (!incidentId) {
       return reply.status(400).send({ success: false, error: { code: 'MISSING_PARAM', message: 'incidentId required' } });

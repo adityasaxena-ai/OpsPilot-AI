@@ -67,7 +67,15 @@
 | | `/api/v1/topology/components/:id` | GET | PUBLIC | — | Component detail read |
 | **Integrations (2)** | `/api/v1/integrations` | GET | PUBLIC | — | Integration list read |
 | | `/api/v1/integrations/test` | POST | PUBLIC | — | Outbound ping test (R-10, accepted risk) |
-| **AI (8)** | `/api/v1/ai/*` (8 routes) | ALL | PUBLIC | — | AI inference (follow-on audit planned) |
+| **AI (8)** | `/api/v1/ai/triage` | POST | **PROTECTED** | `AI_INVESTIGATE` | AI triage trigger — protected against LLM/quota abuse (R-18) |
+| | `/api/v1/ai/investigate/stream/:incidentId` | GET | **PROTECTED** | `AI_INVESTIGATE` | Live SSE investigation stream — protected (R-18) |
+| | `/api/v1/ai/investigate` | POST | **PROTECTED** | `AI_INVESTIGATE` | Full AI pipeline execution — protected (R-18) |
+| | `/api/v1/ai/postmortem` | POST | **PROTECTED** | `AI_INVESTIGATE` | AI postmortem generation — protected (R-18) |
+| | `/api/v1/ai/chat` | POST | **PROTECTED** | `AI_INVESTIGATE` | AI Copilot interactive assistant — protected (R-18) |
+| | `/api/v1/ai/copilot/:incidentId` | GET | **PROTECTED** | `AI_INVESTIGATE` | Copilot summary & decision engine read — protected (R-18) |
+| | `/api/v1/ai/investigations/:incidentId` | GET | **PROTECTED** | `AI_INVESTIGATE` | Investigation history read — protected (R-18) |
+| | `/api/v1/ai/summarize-timeline` | POST | **PROTECTED** | `AI_INVESTIGATE` | Timeline summarization — protected (R-18) |
+
 | **Governance (8)** | `/api/v1/governance/*` | MIXED | **PROTECTED** | `GOVERNANCE_VIEW` / `MANAGE` | Feature-flagged policy governance |
 | **Drift (6)** | `/api/v1/drift/*` | MIXED | **PROTECTED** | `DRIFT_VIEW` / `MANAGE` | Feature-flagged drift detection |
 | **AI Incidents (5)**| `/api/v1/ai-incidents/*` | MIXED | **PROTECTED** | `AI_INCIDENT_VIEW` / `MANAGE` | Feature-flagged AI incidents |

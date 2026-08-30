@@ -157,3 +157,21 @@ Matched exactly against 21 registered Fastify plugins.
   2. Added an explicit startup warning logger when `ENABLE_DEMO_AUTH=true` is detected at process startup to ensure visibility of demo authentication mode.
   3. Retained the existing R-05 production crash guard (`ENABLE_DEMO_AUTH=true` + `NODE_ENV=production` causes immediate process termination).
 
+## 9. AI Routes Authorization Retrofit (Task 1)
+
+### 9.1 AI Route Protection & LLM Resource Protection (R-18)
+- **Target File:** `apps/api/src/modules/ai/ai.routes.ts`
+- **Endpoints Gated:**
+  - `POST /api/v1/ai/triage`
+  - `GET /api/v1/ai/investigate/stream/:incidentId`
+  - `POST /api/v1/ai/investigate`
+  - `POST /api/v1/ai/postmortem`
+  - `POST /api/v1/ai/chat`
+  - `GET /api/v1/ai/copilot/:incidentId`
+  - `GET /api/v1/ai/investigations/:incidentId`
+  - `POST /api/v1/ai/summarize-timeline`
+- **Threat Scenario:** Unauthenticated callers or malicious clients triggering computationally expensive LLM completions and multi-agent orchestrations, causing API quota depletion, CPU/memory exhaustion, or unauthorized extraction of sensitive incident root cause analysis and infrastructure topology data.
+- **Required Permission:** `AI_INVESTIGATE` (enforced via `requirePermission('AI_INVESTIGATE')` preHandler middleware across all 8 routes).
+- **Access Scope:** Granted to `VIEWER`, `SRE_OPERATOR`, `INCIDENT_COMMANDER`, `SECURITY_ADMIN`. Unauthenticated requests or requests missing `AI_INVESTIGATE` are rejected with HTTP 401 / HTTP 403.
+
+
