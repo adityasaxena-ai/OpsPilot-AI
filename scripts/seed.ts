@@ -6,70 +6,53 @@
  */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import argon2 from 'argon2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOCAL DEMO CREDENTIALS (FOR LOCAL DEV & DEMO PURPOSES ONLY)
+// These passwords are for local evaluation and interactive UI demo flows.
+// NEVER use these credentials in a real production environment.
+//
+// 1. Username: "viewer"    | Password: "OpsPilot2026!viewer"    | Role: VIEWER
+// 2. Username: "sre"       | Password: "OpsPilot2026!sre"       | Role: SRE_OPERATOR
+// 3. Username: "commander" | Password: "OpsPilot2026!commander" | Role: INCIDENT_COMMANDER
+// 4. Username: "admin"     | Password: "OpsPilot2026!admin"     | Role: SECURITY_ADMIN
+// ─────────────────────────────────────────────────────────────────────────────
 
 const db = new PrismaClient();
+
 
 async function main() {
   console.log('🌱 Seeding OpsPilot database...');
 
-  // ── Admin & Dev Test Users ──────────────────────────────────────────────────
-  const adminUser = await db.user.upsert({
-    where: { email: 'admin@opspilot.dev' },
-    update: {},
-    create: {
-      email: 'admin@opspilot.dev',
-      name: 'OpsPilot Admin',
-      role: 'ADMIN',
-    },
-  });
-  console.log('✅ Admin user created:', adminUser.email);
+  // ── 4 Primary RBAC Demo Users (Argon2id Hashed) ───────────────────────────
+  const demoUsers = [
+    { username: 'viewer', password: 'OpsPilot2026!viewer', role: 'VIEWER' as const, name: 'Demo Viewer User', email: 'viewer@opspilot.dev' },
+    { username: 'sre', password: 'OpsPilot2026!sre', role: 'SRE_OPERATOR' as const, name: 'Demo SRE Operator', email: 'sre@opspilot.dev' },
+    { username: 'commander', password: 'OpsPilot2026!commander', role: 'INCIDENT_COMMANDER' as const, name: 'Demo Incident Commander', email: 'commander@opspilot.dev' },
+    { username: 'admin', password: 'OpsPilot2026!admin', role: 'SECURITY_ADMIN' as const, name: 'Demo Security Admin', email: 'admin@opspilot.dev' },
+  ];
 
-  const icUser = await db.user.upsert({
-    where: { email: 'sre@opspilot.dev' },
-    update: {},
-    create: {
-      email: 'sre@opspilot.dev',
-      name: 'SRE Engineer',
-      role: 'INCIDENT_COMMANDER',
-    },
-  });
-  console.log('✅ SRE user created:', icUser.email);
+  for (const userDef of demoUsers) {
+    const passwordHash = await argon2.hash(userDef.password);
+    const user = await db.user.upsert({
+      where: { username: userDef.username },
+      update: {
+        passwordHash,
+        role: userDef.role,
+        name: userDef.name,
+      },
+      create: {
+        username: userDef.username,
+        passwordHash,
+        role: userDef.role,
+        name: userDef.name,
+        email: userDef.email,
+      },
+    });
+    console.log(`✅ Demo User created/updated: username=${user.username}, role=${user.role}`);
+  }
 
-  const devSecAdmin = await db.user.upsert({
-    where: { email: 'sec-admin-user@opspilot.dev' },
-    update: {},
-    create: {
-      id: 'sec-admin-user',
-      email: 'sec-admin-user@opspilot.dev',
-      name: 'Dev SECURITY_ADMIN sec-admin-user',
-      role: 'ADMIN',
-    },
-  });
-  console.log('✅ Dev SEC_ADMIN user created:', devSecAdmin.id);
-
-  const devViewer = await db.user.upsert({
-    where: { email: 'viewer-user@opspilot.dev' },
-    update: {},
-    create: {
-      id: 'viewer-user',
-      email: 'viewer-user@opspilot.dev',
-      name: 'Dev VIEWER viewer-user',
-      role: 'VIEWER',
-    },
-  });
-  console.log('✅ Dev VIEWER user created:', devViewer.id);
-
-  const devDefaultAdmin = await db.user.upsert({
-    where: { email: 'dev-user-admin@opspilot.dev' },
-    update: {},
-    create: {
-      id: 'dev-user-admin',
-      email: 'dev-user-admin@opspilot.dev',
-      name: 'Dev Default Admin',
-      role: 'ADMIN',
-    },
-  });
-  console.log('✅ Dev Default Admin user created:', devDefaultAdmin.id);
 
   // ── Services ───────────────────────────────────────────────────────────────
   const serviceDefinitions = [

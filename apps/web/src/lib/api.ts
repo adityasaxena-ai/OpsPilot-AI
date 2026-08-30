@@ -1,6 +1,17 @@
 const rawApiUrl = import.meta.env.VITE_API_URL || '';
 export const API_BASE = (rawApiUrl ? rawApiUrl.replace(/\/$/, '') : '') + '/api/v1';
 
+let authToken: string | null = null;
+let onUnauthorizedCb: (() => void) | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
+export function setOnUnauthorized(cb: () => void) {
+  onUnauthorizedCb = cb;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const isMutation = options?.method === 'POST' || options?.method === 'PUT' || options?.method === 'PATCH';
   const hasBody = options?.body !== undefined;
@@ -10,11 +21,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers['Content-Type'] = 'application/json';
   }
 
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
     body: hasBody ? options.body : isMutation ? '{}' : undefined,
   });
+
+  if (res.status === 401) {
+    if (onUnauthorizedCb) {
+      onUnauthorizedCb();
+    }
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: { message: res.statusText } }));
@@ -24,9 +45,31 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+
 // ─── Services ────────────────────────────────────────────────────────────────
 export const api = {
+  auth: {
+    login: (body: { username?: string; password?: string }) =>
+      request<{
+        success: boolean;
+        data: {
+          token: string;
+          user: {
+            id: string;
+            username: string;
+            name: string;
+            email: string | null;
+            role: string;
+          };
+        };
+      }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
+
   services: {
+
     list: () => request<{ success: boolean; data: unknown[] }>('/services'),
     get: (id: string) => request<{ success: boolean; data: unknown }>(`/services/${id}`),
     health: (id: string) => request<{ success: boolean; data: unknown }>(`/services/${id}/health`),
