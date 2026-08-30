@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { db } from '../../lib/db.js';
 import type { IncidentStatus, Severity } from '@opspilot/types';
+import { requirePermission } from '../auth/auth.middleware.js';
 
 export const incidentsRoutes: FastifyPluginAsync = async (app) => {
   // GET /api/v1/incidents
@@ -98,11 +99,11 @@ export const incidentsRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: events };
   });
 
-  // PATCH /api/v1/incidents/:id
+  // PATCH /api/v1/incidents/:id (requires authentication)
   app.patch<{
     Params: { id: string };
     Body: { status?: IncidentStatus; severity?: Severity; assignedToId?: string };
-  }>('/:id', async (request, reply) => {
+  }>('/:id', { preHandler: requirePermission('INCIDENT_VIEW') }, async (request, reply) => {
     const { status, severity, assignedToId } = request.body;
 
     const incident = await db.incident.findUnique({
@@ -128,11 +129,11 @@ export const incidentsRoutes: FastifyPluginAsync = async (app) => {
     return { success: true, data: updated };
   });
 
-  // PATCH /api/v1/incidents/:id/status — Lifecycle State Machine Transition
+  // PATCH /api/v1/incidents/:id/status — Lifecycle State Machine Transition (requires REMEDIATION_APPROVE)
   app.patch<{
     Params: { id: string };
     Body: { status: string };
-  }>('/:id/status', async (request, reply) => {
+  }>('/:id/status', { preHandler: requirePermission('REMEDIATION_APPROVE') }, async (request, reply) => {
     const { id } = request.params;
     const { status: targetStatus } = request.body ?? {};
 

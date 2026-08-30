@@ -43,7 +43,6 @@ This threat model establishes the baseline security posture for OpsPilot AI prio
 | **R-14** | **P2** | Username Enumeration | Login error messages revealing whether username exists | `POST /api/v1/auth/login` | Uniform 401 `INVALID_CREDENTIALS` ("Invalid username or password") response |
 | **R-15** | **P2** | Seeded Demo Account Risk | Pre-seeded demo credentials accessible if deployed as-is | Database `User` table / Seed script | Documented explicit accepted risk for local/demo scope; manual production seed required |
 
-
 ---
 
 ## 3. Trust Boundaries & Role Hierarchy
@@ -118,6 +117,13 @@ Matched exactly against 21 registered Fastify plugins.
 
 ---
 
+## 6. Rate Limiting Specification
+
+- **Global Rate Limit:** 200 requests / 1 minute per IP (reduced from 500/min).
+  - *Reasoning:* Protects Fastify process from general request floods while easily accommodating single-page app poll rates.
+- **Simulator Mutations Rate Limit:** 30 requests / 1 minute per IP (applied via `CHAOS_RATE_LIMIT` route config on POST `/chaos`, `/deploy`, `/heal`).
+  - *Reasoning:* Prevents rapid automated chaos injection loops from exhausting CPU/memory or spamming database state.
+
 ## 7. Real Authentication Flow Addendum (Task 0 / Step 0)
 
 ### 7.1 Password Storage Architecture (R-11)
@@ -139,4 +145,3 @@ Matched exactly against 21 registered Fastify plugins.
 ### 7.5 Seeded Demo Accounts & Production Scope (R-15)
 - **Baseline Credentials:** The database seed script (`prisma/seed.ts`) seeds 4 accounts matching the 4 RBAC roles: `viewer`, `sre`, `commander`, `admin`.
 - **Accepted Risk Statement:** Known demo credentials are provided for local interactive evaluation and demo convenience. This is an **explicit accepted risk** within the scope of this project. Production deployments (Railway) require a one-time manual seeding process with non-default passwords.
-

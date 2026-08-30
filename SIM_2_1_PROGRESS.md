@@ -175,3 +175,60 @@ To guarantee the pipeline actively catches regressions rather than acting as a p
 | **Phase 2** | Infrastructure as Code (Full Stack Compose, Fresh Clone Verified) | **COMPLETED** |
 | **Phase 3** | Operational Hardening & Chaos Testing | *Pending* |
 
+
+---
+
+## Pre-Phase 3: Security Shift-Left Retrofit
+
+**Branch:** `security/shift-left`
+**Status:** ✅ Complete, CI-verified — PR #2 open ([#2](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/2))
+**Commit:** _(see `git log -1 --oneline` on this branch, or the PR's merge commit)_
+
+### Threat Model
+See `THREAT_MODEL_SECURITY_RETROFIT.md` for the full risk register (R-01
+through R-10), attack surface breakdown, and trust boundaries.
+
+### Authorization Audit
+See `AUTHZ_AUDIT.md` for the complete route-by-route protection table
+(98 endpoints across 21 route modules, cross-checked against
+`apps/api/src/app.ts` plugin registration).
+
+### Changes Made
+
+#### Auth Enforcement (R-01 through R-04)
+`requirePermission()` guards added to 14 previously-unprotected mutation
+endpoints:
+- **Simulator** (`POST /chaos`, `/heal`, `/deploy`): `REMEDIATION_EXECUTE` (INCIDENT_COMMANDER)
+- **Rules** (`POST`/`PUT`/`DELETE`): `REMEDIATION_APPROVE` (SRE_OPERATOR+)
+- **Telemetry mutations** (`provider`/`record`/`replay`): `ADMIN_CONFIGURATION` (SECURITY_ADMIN)
+- **Alerts** `PATCH`: `INCIDENT_VIEW`
+- **Incidents** `PATCH`: `INCIDENT_VIEW` / `REMEDIATION_APPROVE`
+- **Events** `POST`: `INCIDENT_VIEW`
+
+#### Rate Limit Tightening (R-06)
+- Global limit: 500 → 200 req/min per IP
+- Simulator POST routes: additional 30 req/min per-route override
+
+#### Production Safety Guard (R-05)
+- `auth.middleware.ts`: process exits on startup if `ENABLE_DEMO_AUTH=true`
+  while `NODE_ENV=production`
+
+#### CI Security Scanning (report-only baseline)
+- `pnpm audit --audit-level=high` added to `ci.yml` (`|| true` — report-only
+  until the flagged transitive-dep CVEs are patched)
+- `gitleaks/gitleaks-action@v2` added to `ci.yml` (`continue-on-error: true`)
+- `.gitleaks.toml` allowlists documented CI-only dummy JWT secret values
+
+### Verification
+
+CI run for this commit (Typecheck → Build → Test are hard-fail steps, run
+before the report-only audit/gitleaks steps): https://github.com/adityasaxena-ai/OpsPilot-AI/actions/workflows/ci.yml?query=branch%3Asecurity%2Fshift-left
+
+Live auth/rate-limit probes: raw terminal output saved at
+[`security/live_probes_verification.log`](file:///Users/pankaja/AI%20Projects/OpsAI/security/live_probes_verification.log)
+
+### Open Items (follow-on, not blocking this PR)
+- [ ] `ai.routes.ts` — no auth guards detected, needs its own pass
+- [ ] `pnpm update` to patch the 5 high-severity transitive deps (find-my-way,
+      @fastify/static, vite/vitest chain), then remove `|| true` to enforce
+- [ ] Enable gitleaks hard-fail once baseline allowlist is confirmed complete

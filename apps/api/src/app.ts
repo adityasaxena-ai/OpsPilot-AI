@@ -79,8 +79,11 @@ export async function buildApp() {
     credentials: true,
   });
   await app.register(rateLimit, {
-    max: 500,
+    max: 200,
     timeWindow: '1 minute',
+    // Per-IP rate limiting. keyGenerator defaults to request IP.
+    // Individual route groups override this global limit where tighter
+    // throttling is required (e.g. simulator mutation endpoints).
   });
 
   // ── Database + Redis lifecycle ─────────────────────────────────────────

@@ -8,6 +8,7 @@ import {
   getScenarios,
   triggerDeployment,
 } from './simulator.service.js';
+import { requirePermission } from '../auth/auth.middleware.js';
 
 export const simulatorRoutes: FastifyPluginAsync = async (app) => {
   // GET /api/v1/simulator/status
@@ -22,6 +23,7 @@ export const simulatorRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/simulator (or /api/v1/simulator/chaos)
+  // Requires REMEDIATION_EXECUTE — chaos injection is a high-risk control-plane action.
   const handleChaosInjection = async (request: any, reply: any) => {
     const result = ChaosInjectionRequestSchema.safeParse(request.body);
     if (!result.success) {
@@ -35,11 +37,14 @@ export const simulatorRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(201).send({ success: true, data: outcome });
   };
 
-  app.post('/', handleChaosInjection);
-  app.post('/chaos', handleChaosInjection);
+  // Tight per-IP rate limit on chaos mutations: 30 req/min (overrides global 200/min).
+  const CHAOS_RATE_LIMIT = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } } as const;
+
+  app.post('/', { preHandler: requirePermission('REMEDIATION_EXECUTE'), ...CHAOS_RATE_LIMIT }, handleChaosInjection);
+  app.post('/chaos', { preHandler: requirePermission('REMEDIATION_EXECUTE'), ...CHAOS_RATE_LIMIT }, handleChaosInjection);
 
   // POST /api/v1/simulator/heal
-  app.post('/heal', async (request) => {
+  app.post('/heal', { preHandler: requirePermission('REMEDIATION_EXECUTE'), ...CHAOS_RATE_LIMIT }, async (request) => {
     const body = request.body as { serviceId?: string } | undefined;
     if (body?.serviceId) {
       await healService(body.serviceId);
@@ -50,7 +55,7 @@ export const simulatorRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/simulator/deploy
-  app.post('/deploy', async (request, reply) => {
+  app.post('/deploy', { preHandler: requirePermission('REMEDIATION_EXECUTE'), ...CHAOS_RATE_LIMIT }, async (request, reply) => {
     const body = request.body as { serviceId: string; isBadDeployment?: boolean; version?: string };
     if (!body?.serviceId) {
       return reply.status(400).send({ success: false, error: { code: 'MISSING_FIELD', message: 'serviceId required' } });
