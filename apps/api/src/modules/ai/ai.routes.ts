@@ -13,7 +13,20 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   const orchestrator = new AIOrchestrator(db);
 
   // POST /api/v1/ai/triage — Trigger AI Triage for an incident
-  app.post<{ Body: { incidentId: string } }>('/triage', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+  app.post<{ Body: { incidentId: string } }>('/triage', {
+    preHandler: requirePermission('AI_INVESTIGATE'),
+    schema: {
+      tags: ['ai'],
+      summary: 'Trigger AI Triage for an incident',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['incidentId'],
+        properties: { incidentId: { type: 'string' } },
+      },
+    },
+  }, async (request, reply) => {
+
 
     const { incidentId } = request.body;
     if (!incidentId) {
@@ -35,7 +48,20 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // GET /api/v1/ai/investigate/stream/:incidentId — SSE Live Investigation Stream
-  app.get<{ Params: { incidentId: string } }>('/investigate/stream/:incidentId', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+  app.get<{ Params: { incidentId: string } }>('/investigate/stream/:incidentId', {
+    preHandler: requirePermission('AI_INVESTIGATE'),
+    schema: {
+      tags: ['ai'],
+      summary: 'SSE Live Investigation Stream for an incident',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['incidentId'],
+        properties: { incidentId: { type: 'string' } },
+      },
+    },
+  }, async (request, reply) => {
+
 
     const { incidentId } = request.params;
 
@@ -117,7 +143,20 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/ai/investigate — Trigger Full AI Pipeline (Triage -> Evidence -> Investigation -> RCA)
-  app.post<{ Body: { incidentId: string } }>('/investigate', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+  app.post<{ Body: { incidentId: string } }>('/investigate', {
+    preHandler: requirePermission('AI_INVESTIGATE'),
+    schema: {
+      tags: ['ai'],
+      summary: 'Trigger Full AI Pipeline (Triage -> Evidence -> Investigation -> RCA)',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['incidentId'],
+        properties: { incidentId: { type: 'string' } },
+      },
+    },
+  }, async (request, reply) => {
+
 
     const { incidentId } = request.body;
     if (!incidentId) {
@@ -134,7 +173,20 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/ai/postmortem — Generate AI Postmortem for resolved incident
-  app.post<{ Body: { incidentId: string } }>('/postmortem', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+  app.post<{ Body: { incidentId: string } }>('/postmortem', {
+    preHandler: requirePermission('AI_INVESTIGATE'),
+    schema: {
+      tags: ['ai'],
+      summary: 'Generate AI Postmortem for resolved incident',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['incidentId'],
+        properties: { incidentId: { type: 'string' } },
+      },
+    },
+  }, async (request, reply) => {
+
 
     const { incidentId } = request.body ?? {};
     if (!incidentId) {
@@ -166,7 +218,23 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/ai/chat — AI Copilot interactive assistant
-  app.post<{ Body: { message: string; incidentId?: string } }>('/chat', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+  app.post<{ Body: { message: string; incidentId?: string } }>('/chat', {
+    preHandler: requirePermission('AI_INVESTIGATE'),
+    schema: {
+      tags: ['ai'],
+      summary: 'AI Copilot interactive assistant',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['message'],
+        properties: {
+          message: { type: 'string' },
+          incidentId: { type: 'string' },
+        },
+      },
+    },
+  }, async (request, reply) => {
+
 
     const { message, incidentId } = request.body;
     if (!message) {
@@ -204,7 +272,20 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // GET /api/v1/ai/copilot/:incidentId — AI Incident Copilot summary & decision engine data
-  app.get<{ Params: { incidentId: string } }>('/copilot/:incidentId', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+  app.get<{ Params: { incidentId: string } }>('/copilot/:incidentId', {
+    preHandler: requirePermission('AI_INVESTIGATE'),
+    schema: {
+      tags: ['ai'],
+      summary: 'AI Incident Copilot summary & decision engine data',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['incidentId'],
+        properties: { incidentId: { type: 'string' } },
+      },
+    },
+  }, async (request, reply) => {
+
 
     const { incidentId } = request.params;
 
@@ -426,7 +507,20 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // GET /api/v1/ai/investigations/:incidentId — Get AI investigation history for an incident
-  app.get<{ Params: { incidentId: string } }>('/investigations/:incidentId', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request) => {
+  app.get<{ Params: { incidentId: string } }>('/investigations/:incidentId', {
+    preHandler: requirePermission('AI_INVESTIGATE'),
+    schema: {
+      tags: ['ai'],
+      summary: 'Get AI investigation history for an incident',
+      security: [{ bearerAuth: [] }],
+      params: {
+        type: 'object',
+        required: ['incidentId'],
+        properties: { incidentId: { type: 'string' } },
+      },
+    },
+  }, async (request) => {
+
 
     const investigations = await db.investigation.findMany({
       where: { incidentId: request.params['incidentId'] },
@@ -437,7 +531,20 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // POST /api/v1/ai/summarize-timeline — AI Incident Timeline Summarizer
-  app.post<{ Body: { incidentId: string } }>('/summarize-timeline', { preHandler: requirePermission('AI_INVESTIGATE') }, async (request, reply) => {
+  app.post<{ Body: { incidentId: string } }>('/summarize-timeline', {
+    preHandler: requirePermission('AI_INVESTIGATE'),
+    schema: {
+      tags: ['ai'],
+      summary: 'AI Incident Timeline Summarizer',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['incidentId'],
+        properties: { incidentId: { type: 'string' } },
+      },
+    },
+  }, async (request, reply) => {
+
 
     const { incidentId } = request.body ?? {};
     if (!incidentId) {

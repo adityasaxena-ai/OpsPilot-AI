@@ -2,7 +2,10 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { getConfig } from '@opspilot/config';
+
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 
@@ -86,6 +89,42 @@ export async function buildApp() {
     // throttling is required (e.g. simulator mutation endpoints).
   });
 
+  // ── OpenAPI / Swagger Documentation ────────────────────────────────────
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: 'OpsPilot AI Control Tower API',
+        description: 'Autonomous IT Operations Control Tower powered by AI, OpenTelemetry, and intelligent incident management.',
+        version: '0.1.0',
+      },
+      servers: [
+        { url: 'http://localhost:3001', description: 'Local Development Server' },
+        { url: 'https://opspilotapi-production.up.railway.app', description: 'Production Server' },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            description: 'Enter your Bearer JWT token obtained from POST /api/v1/auth/login',
+          },
+        },
+      },
+      security: [{ bearerAuth: [] }],
+    },
+  });
+
+
+  await app.register(swaggerUi, {
+    routePrefix: '/documentation',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: false,
+    },
+  });
+
+
   // ── Database + Redis lifecycle ─────────────────────────────────────────
   app.addHook('onClose', async () => {
     stopSimulatorTick();
@@ -100,12 +139,30 @@ export async function buildApp() {
   });
 
   // ── Routes ──────────────────────────────────────────────────────────────
-  app.get('/', async () => ({
+  app.get('/', {
+    schema: {
+      tags: ['system'],
+      summary: 'API root welcome endpoint',
+      security: [],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            status: { type: 'string' },
+            version: { type: 'string' },
+            health: { type: 'string' },
+          },
+        },
+      },
+    },
+  }, async () => ({
     name: 'OpsPilot API',
     status: 'healthy',
     version: '0.1.0',
     health: '/health',
   }));
+
   await app.register(healthRoutes, { prefix: '/health' });
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
   await app.register(eventsRoutes, { prefix: '/api/v1/events' });

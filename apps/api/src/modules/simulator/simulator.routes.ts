@@ -12,13 +12,42 @@ import { requirePermission } from '../auth/auth.middleware.js';
 
 export const simulatorRoutes: FastifyPluginAsync = async (app) => {
   // GET /api/v1/simulator/status
-  app.get('/status', async () => {
+  // GET /api/v1/simulator/status
+  app.get('/status', {
+    schema: {
+      tags: ['simulator'],
+      summary: 'Get current chaos simulator engine status',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'object', additionalProperties: true },
+          },
+        },
+      },
+    },
+  }, async () => {
     const status = await getSimulatorStatus();
     return { success: true, data: status };
   });
 
   // GET /api/v1/simulator/scenarios
-  app.get('/scenarios', async () => {
+  app.get('/scenarios', {
+    schema: {
+      tags: ['simulator'],
+      summary: 'List available chaos failure scenarios',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+          },
+        },
+      },
+    },
+  }, async () => {
     return { success: true, data: getScenarios() };
   });
 
@@ -39,12 +68,53 @@ export const simulatorRoutes: FastifyPluginAsync = async (app) => {
 
   // Tight per-IP rate limit on chaos mutations: 30 req/min (overrides global 200/min).
   const CHAOS_RATE_LIMIT = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } } as const;
+  const CHAOS_SCHEMA = {
+    tags: ['simulator'],
+    summary: 'Inject chaos failure scenario into target service',
+    security: [{ bearerAuth: [] }],
+    body: {
+      type: 'object',
+      required: ['serviceId', 'scenario'],
+      properties: {
+        serviceId: { type: 'string' },
+        scenario: {
+          type: 'string',
+          enum: [
+            'BAD_DEPLOYMENT',
+            'HIGH_CPU',
+            'MEMORY_LEAK',
+            'DB_CONNECTION_EXHAUSTION',
+            'API_LATENCY',
+            'QUEUE_BACKLOG',
+            'BATCH_FAILURE',
+            'DISK_FULL',
+            'DEPENDENCY_FAILURE',
+            'CERT_EXPIRY',
+          ],
+        },
+      },
+    },
+  };
 
-  app.post('/', { preHandler: requirePermission('REMEDIATION_EXECUTE'), ...CHAOS_RATE_LIMIT }, handleChaosInjection);
-  app.post('/chaos', { preHandler: requirePermission('REMEDIATION_EXECUTE'), ...CHAOS_RATE_LIMIT }, handleChaosInjection);
+  app.post('/', { preHandler: requirePermission('REMEDIATION_EXECUTE'), schema: CHAOS_SCHEMA, ...CHAOS_RATE_LIMIT }, handleChaosInjection);
+  app.post('/chaos', { preHandler: requirePermission('REMEDIATION_EXECUTE'), schema: CHAOS_SCHEMA, ...CHAOS_RATE_LIMIT }, handleChaosInjection);
 
   // POST /api/v1/simulator/heal
-  app.post('/heal', { preHandler: requirePermission('REMEDIATION_EXECUTE'), ...CHAOS_RATE_LIMIT }, async (request) => {
+  app.post('/heal', {
+    preHandler: requirePermission('REMEDIATION_EXECUTE'),
+    schema: {
+      tags: ['simulator'],
+      summary: 'Heal injected chaos failure scenarios',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        properties: {
+          serviceId: { type: 'string', description: 'Optional target service ID to heal, or omit to heal all' },
+        },
+      },
+    },
+    ...CHAOS_RATE_LIMIT,
+  }, async (request) => {
     const body = request.body as { serviceId?: string } | undefined;
     if (body?.serviceId) {
       await healService(body.serviceId);
@@ -53,6 +123,7 @@ export const simulatorRoutes: FastifyPluginAsync = async (app) => {
     await healAll();
     return { success: true, data: { healed: 'all' } };
   });
+
 
   // POST /api/v1/simulator/deploy
   app.post('/deploy', { preHandler: requirePermission('REMEDIATION_EXECUTE'), ...CHAOS_RATE_LIMIT }, async (request, reply) => {
