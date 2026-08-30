@@ -64,8 +64,9 @@ export function ChaosLab() {
     },
   });
 
-  const scenarios = (scenariosData?.data as Scenario[] | undefined) ?? [];
-  const simServices = (statusData?.data as SimService[] | undefined) ?? [];
+  const scenarios = Array.isArray(scenariosData?.data) ? (scenariosData.data as Scenario[]) : [];
+  const simServices = Array.isArray(statusData?.data) ? (statusData.data as SimService[]) : [];
+
   const unhealthyServices = simServices.filter((s) => !s.isHealthy);
   const degradedCount = unhealthyServices.length;
 

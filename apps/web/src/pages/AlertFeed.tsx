@@ -32,7 +32,8 @@ export function AlertFeed() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
   });
 
-  const alerts = (data?.data as Alert[] | undefined) ?? [];
+  const alerts = Array.isArray(data?.data) ? (data.data as Alert[]) : [];
+
   const total = (data?.meta as { total?: number } | undefined)?.total ?? 0;
 
   return (

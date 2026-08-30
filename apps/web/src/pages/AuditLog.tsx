@@ -30,7 +30,8 @@ export function AuditLog() {
     refetchInterval: 15_000,
   });
 
-  const logs = (data?.data as AuditEntry[] | undefined) ?? [];
+  const logs = Array.isArray(data?.data) ? (data.data as AuditEntry[]) : [];
+
   const total = (data?.meta as { total?: number } | undefined)?.total ?? 0;
 
   return (
