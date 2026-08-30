@@ -3,7 +3,48 @@ import { db } from '../../lib/db.js';
 import { redis } from '../../lib/redis.js';
 
 export const healthRoutes: FastifyPluginAsync = async (app) => {
-  app.get('/', async (_request, reply) => {
+  app.get('/', {
+    schema: {
+      tags: ['health'],
+      summary: 'System healthcheck and dependency status',
+      security: [],
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            status: { type: 'string' },
+            health: { type: 'string' },
+            version: { type: 'string' },
+            timestamp: { type: 'string' },
+            dependencies: {
+              type: 'object',
+              properties: {
+                database: { type: 'string' },
+                redis: { type: 'string' },
+              },
+            },
+          },
+        },
+        503: {
+          type: 'object',
+          properties: {
+            status: { type: 'string' },
+            health: { type: 'string' },
+            version: { type: 'string' },
+            timestamp: { type: 'string' },
+            dependencies: {
+              type: 'object',
+              properties: {
+                database: { type: 'string' },
+                redis: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+  }, async (_request, reply) => {
+
     // Check DB connectivity
     let dbStatus = 'ok';
     try {

@@ -10,8 +10,49 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   // POST /api/v1/auth/login — Authenticate user and issue JWT
   app.post<{
     Body: { username?: string; password?: string };
-  }>('/login', LOGIN_RATE_LIMIT, async (request, reply) => {
+  }>('/login', {
+    ...LOGIN_RATE_LIMIT,
+    schema: {
+      tags: ['auth'],
+      summary: 'Authenticate user and issue Bearer JWT',
+      security: [],
+      body: {
+
+        type: 'object',
+        required: ['username', 'password'],
+        properties: {
+          username: { type: 'string', description: 'Username for demo or production user' },
+          password: { type: 'string', description: 'User password' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                token: { type: 'string' },
+                user: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    username: { type: 'string' },
+                    name: { type: 'string' },
+                    email: { type: 'string' },
+                    role: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
     const { username, password } = request.body ?? {};
+
 
     if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
       return reply.status(401).send({

@@ -4,7 +4,21 @@ import { requirePermission } from '../auth/auth.middleware.js';
 
 export const rulesRoutes: FastifyPluginAsync = async (app) => {
   // GET /api/v1/rules — List all threshold rules
-  app.get('/', async () => {
+  app.get('/', {
+    schema: {
+      tags: ['rules'],
+      summary: 'List all threshold rules',
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object', additionalProperties: true } },
+          },
+        },
+      },
+    },
+  }, async () => {
     const rules = await db.thresholdRule.findMany({
       include: { service: { select: { id: true, name: true, slug: true } } },
       orderBy: { createdAt: 'desc' },
@@ -24,8 +38,30 @@ export const rulesRoutes: FastifyPluginAsync = async (app) => {
       serviceId?: string;
       isEnabled?: boolean;
     };
-  }>('/', { preHandler: requirePermission('REMEDIATION_APPROVE') }, async (request, reply) => {
+  }>('/', {
+    preHandler: requirePermission('REMEDIATION_APPROVE'),
+    schema: {
+      tags: ['rules'],
+      summary: 'Create a new threshold rule',
+      security: [{ bearerAuth: [] }],
+      body: {
+        type: 'object',
+        required: ['name', 'metric', 'operator', 'threshold'],
+        properties: {
+          name: { type: 'string' },
+          metric: { type: 'string' },
+          operator: { type: 'string' },
+          threshold: { type: 'number' },
+          durationSec: { type: 'number' },
+          severity: { type: 'string', enum: ['P1', 'P2', 'P3', 'P4', 'P5'] },
+          serviceId: { type: 'string' },
+          isEnabled: { type: 'boolean' },
+        },
+      },
+    },
+  }, async (request, reply) => {
     const { name, metric, operator, threshold, durationSec, severity, serviceId, isEnabled } = request.body;
+
 
     if (!name || !metric || !operator || threshold === undefined) {
       return reply.status(400).send({
