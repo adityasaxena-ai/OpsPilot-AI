@@ -14,9 +14,16 @@ import {
   Network,
   Menu,
   X,
+  User,
+  Shield,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MaintenanceModal } from '../common/MaintenanceModal';
+import { useAuth } from '@/context/AuthContext';
+import { LoginModal } from '../auth/LoginModal';
+
 
 const navItems = [
   { to: '/', label: 'Command Center', icon: LayoutDashboard, exact: true },
@@ -33,6 +40,9 @@ const navItems = [
 
 export function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
+
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden" style={{ background: 'hsl(var(--bg-app))' }}>
@@ -154,19 +164,55 @@ export function AppLayout() {
           ))}
         </nav>
 
-        {/* Version badge */}
-        <div className="px-4 py-3 border-t" style={{ borderColor: 'hsl(var(--border))' }}>
-          <div className="flex items-center gap-1.5">
-            <span className="pulse-dot" style={{ background: 'hsl(var(--color-healthy))' }} />
-            <span className="text-xs" style={{ color: 'hsl(var(--text-tertiary))' }}>
-              Simulation Mode
+        {/* Version & User Auth status badge */}
+        <div className="px-3 py-3 border-t space-y-2" style={{ borderColor: 'hsl(var(--border))' }}>
+          {isAuthenticated && user ? (
+            <div className="p-2.5 rounded-lg border bg-slate-900/50 space-y-1.5" style={{ borderColor: 'hsl(var(--border))' }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-medium text-xs truncate" style={{ color: 'hsl(var(--text-primary))' }}>
+                  <User size={13} className="text-blue-400 flex-none" />
+                  <span className="truncate">{user.displayName}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={logout}
+                  title="Log Out"
+                  className="p-1 text-slate-400 hover:text-rose-400 transition-colors"
+                >
+                  <LogOut size={13} />
+                </button>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+                <Shield size={11} className="text-emerald-400" />
+                <span>{user.roles.join(', ')}</span>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsLoginModalOpen(true)}
+              className="w-full py-2 px-3 rounded-lg text-xs font-medium text-white flex items-center justify-center gap-2 transition-all shadow-sm hover:opacity-90"
+              style={{ background: 'hsl(220 90% 56%)' }}
+            >
+              <LogIn size={14} />
+              Sign In / Select Role
+            </button>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="pulse-dot" style={{ background: 'hsl(var(--color-healthy))' }} />
+              <span className="text-[11px]" style={{ color: 'hsl(var(--text-tertiary))' }}>
+                Simulation Mode
+              </span>
+            </div>
+            <span className="text-[10px]" style={{ color: 'hsl(var(--text-tertiary))' }}>
+              v0.1.0
             </span>
-          </div>
-          <div className="text-xs mt-1" style={{ color: 'hsl(var(--text-tertiary))' }}>
-            Phase 1 · v0.1.0
           </div>
         </div>
       </aside>
+
 
       {/* ── Main content ── */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -175,8 +221,9 @@ export function AppLayout() {
         </div>
       </main>
 
-      {/* ── Blocking Maintenance Modal ── */}
+      {/* ── Blocking Maintenance Modal & Login Modal ── */}
       <MaintenanceModal />
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </div>
   );
 }

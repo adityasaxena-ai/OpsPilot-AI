@@ -37,6 +37,11 @@ This threat model establishes the baseline security posture for OpsPilot AI prio
 | **R-08** | **P2** | Vulnerable Dependencies | High/Critical CVEs in transitive npm packages | `pnpm-lock.yaml` | Added `pnpm audit --audit-level=high` step to `ci.yml` |
 | **R-09** | **P3** | Event Ingest Spoofing | Unauthenticated event ingestion flooding event buffer | `POST /api/v1/events` | Guarded with `requirePermission('INCIDENT_VIEW')` |
 | **R-10** | **P3** | Outbound Ping Abuse | Webhook test endpoint triggering outbound requests | `POST /api/v1/integrations/test` | Accepted risk (low impact, no data mutation) |
+| **R-11** | **P0** | Password Hash Crackability | Weak or un-salted password hashing algorithms | Database `User.passwordHash` | Hashed using Argon2id (`argon2` package) with salt & memory/time parameters |
+| **R-12** | **P1** | Login Brute Force | Automated credential stuffing / password guessing on login endpoint | `POST /api/v1/auth/login` | Tightly throttled at 10 requests/min per IP via `@fastify/rate-limit` |
+| **R-13** | **P1** | XSS Token Exfiltration | Tokens stored in `localStorage` or `sessionStorage` accessible to XSS | Client browser state | In-memory React context storage ONLY (no `localStorage`). Page refresh clears session |
+| **R-14** | **P2** | Username Enumeration | Login error messages revealing whether username exists | `POST /api/v1/auth/login` | Uniform 401 `INVALID_CREDENTIALS` ("Invalid username or password") response |
+| **R-15** | **P2** | Seeded Demo Account Risk | Pre-seeded demo credentials accessible if deployed as-is | Database `User` table / Seed script | Documented explicit accepted risk for local/demo scope; manual production seed required |
 
 ---
 
@@ -118,3 +123,25 @@ Matched exactly against 21 registered Fastify plugins.
   - *Reasoning:* Protects Fastify process from general request floods while easily accommodating single-page app poll rates.
 - **Simulator Mutations Rate Limit:** 30 requests / 1 minute per IP (applied via `CHAOS_RATE_LIMIT` route config on POST `/chaos`, `/deploy`, `/heal`).
   - *Reasoning:* Prevents rapid automated chaos injection loops from exhausting CPU/memory or spamming database state.
+
+## 7. Real Authentication Flow Addendum (Task 0 / Step 0)
+
+### 7.1 Password Storage Architecture (R-11)
+- **Algorithm Choice:** Argon2id (`argon2` npm library).
+- **Rationale:** Argon2id is the OWASP-recommended standard for password hashing, providing memory-hard resistance against GPU/ASIC brute-force cracking. If native C++ compilation fails in any isolated container build, `bcrypt` with cost factor 12 is the approved fallback (with decision recorded).
+
+### 7.2 Login Brute-Force & Credential Throttling (R-12)
+- **Endpoint:** `POST /api/v1/auth/login`
+- **Throttling Policy:** Capped at **10 requests per minute per IP** using Fastify per-route rate limiting.
+- **Rationale:** Provides strict brute-force protection without hindering normal human login retry attempts.
+
+### 7.3 Token Storage & XSS Mitigation (R-13)
+- **Storage Location:** **In-Memory React Context state ONLY** (never `localStorage` or `sessionStorage`).
+- **Trade-off Analysis:** Storing JWTs in `localStorage` creates a persistent XSS target. Storing tokens strictly in memory ensures that any script injection cannot read a stored credential from disk/storage. The UX cost (session reset on page refresh) is an intentional security design choice.
+
+### 7.4 Username Enumeration Prevention (R-14)
+- **Error Response Strategy:** `POST /api/v1/auth/login` returns a generic `401 Unauthorized` with error message `"Invalid username or password"` regardless of whether the target username exists or the password failed verification.
+
+### 7.5 Seeded Demo Accounts & Production Scope (R-15)
+- **Baseline Credentials:** The database seed script (`prisma/seed.ts`) seeds 4 accounts matching the 4 RBAC roles: `viewer`, `sre`, `commander`, `admin`.
+- **Accepted Risk Statement:** Known demo credentials are provided for local interactive evaluation and demo convenience. This is an **explicit accepted risk** within the scope of this project. Production deployments (Railway) require a one-time manual seeding process with non-default passwords.

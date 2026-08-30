@@ -20,6 +20,7 @@
 | Route Group | Endpoint | Method | Status | Permission Required | Threat Addressed / Rationale |
 |---|---|---|---|---|---|
 | **Root/Health (1)** | `/health` | GET | PUBLIC | — | Infrastructure health probe required by Railway |
+| **Auth (1)** | `/api/v1/auth/login` | POST | PUBLIC | — | Public authentication endpoint to issue JWTs (R-12 throttled at 10 req/min) |
 | **Alerts (4)** | `/api/v1/alerts` | GET | PUBLIC | — | Read-only alert list |
 | | `/api/v1/alerts/:id` | GET | PUBLIC | — | Read-only alert detail |
 | | `/api/v1/alerts/:id` | PATCH | **PROTECTED** | `INCIDENT_VIEW` | Status mutations require authenticated operator (R-04) |
