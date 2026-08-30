@@ -1,7 +1,26 @@
+## 🟢 Current Status — Live Dashboard
+_Last updated: 2026-08-30, by Fastify 5 smoke test & standing dashboard setup_
+
+| Item | Status | Evidence | Last Verified |
+|---|---|---|---|
+| CI/CD Pipeline Setup (PR #1) | ✅ **Merged** | [PR #1](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/1) / [`463682f`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/463682f24e76622860824defa9e6076857f9a622) | 2026-08-27 |
+| Security Shift-Left Retrofit (PR #2) | ✅ **Merged** | [PR #2](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/2) / [`536568a`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/536568a) | 2026-08-29 |
+| Real Auth Flow & Token Handling (PR #3) | ✅ **Merged** | [PR #3](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/3) / [`7bc7ae0`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/7bc7ae0) | 2026-08-29 |
+| Fail-Closed Auth Fallback Fix (PR #4) | ✅ **Merged** | [PR #4](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/4) / [`d15ad27`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/d15ad27) | 2026-08-30 |
+| AI Routes Auth Guards (PR #5) | ✅ **Merged** | [PR #5](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/5) / [`b223f6a`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/b223f6a) | 2026-08-30 |
+| Fastify 4→5 Upgrade & Audit Patches (PR #6) | ✅ **Merged** | [PR #6](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/6) / [`daff1b9`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/daff1b9) | 2026-08-30 |
+| Gitleaks Hard-Fail Enforcement (PR #7) | ✅ **Merged** | [PR #7](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/7) / [`ea2e714`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/ea2e714) | 2026-08-30 |
+
+### ⚠️ Known Risks / Watchlist
+- **Dependency override ranges** — pinned to caret (`^`) in `pnpm-workspace.yaml` as of [`0e4bd23`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/0e4bd23). Check: `pnpm list find-my-way @fastify/static nanoid cross-spawn vite vitest --depth=0` after any `pnpm install`, confirm versions stay within the pinned caret ranges and pass `pnpm audit --audit-level=high`. Last checked: 2026-08-30.
+
+---
+
 # Sim 2.1 Progress & Execution Record
 
 ## Overview
 This document tracks the progress, implementation, empirical verification proof, and system state for **Sim 2.1 — CI/CD Pipeline, Staging Environment, & Operational Hardening**.
+
 
 ---
 
