@@ -116,15 +116,11 @@ jobs:
           JWT_SECRET: ci-only-dummy-jwt-secret-not-used-in-production-min-32-chars
           REDIS_URL: redis://localhost:6379
 
-      # ── 9. Dependency vulnerability scan (report-only) ──────────────────────
-      # Runs pnpm audit at the high+ severity level and prints a findings summary.
-      # First-run policy: `|| true` so this NEVER blocks CI on the baseline scan.
-      # Once the baseline is reviewed and addressed, remove `|| true` to enforce.
-      - name: Dependency audit (report-only)
-        run: |
-          echo "=== pnpm audit findings ==="
-          pnpm audit --audit-level=high 2>&1 || true
-          echo "=== audit scan complete (report-only — does not block CI) ==="
+      # ── 9. Dependency vulnerability scan (enforced) ─────────────────────────
+      # Runs pnpm audit at high+ severity level and fails CI if any high/critical vulnerabilities exist.
+      - name: Dependency audit
+        run: pnpm audit --audit-level=high
+
 
       # ── 10. Secret scan with gitleaks (report-only) ────────────────────────
       # Full-history scan on the first run to surface any historical leaks.
