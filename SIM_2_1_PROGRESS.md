@@ -1,5 +1,5 @@
 ## 🟢 Current Status — Live Dashboard
-_Last updated: 2026-08-30, by Fastify 5 smoke test & standing dashboard setup_
+_Last updated: 2026-08-30, by Phase 3 PR 1 OpenAPI Completeness merge_
 
 | Item | Status | Evidence | Last Verified |
 |---|---|---|---|
@@ -10,6 +10,8 @@ _Last updated: 2026-08-30, by Fastify 5 smoke test & standing dashboard setup_
 | AI Routes Auth Guards (PR #5) | ✅ **Merged** | [PR #5](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/5) / [`b223f6a`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/b223f6a) | 2026-08-30 |
 | Fastify 4→5 Upgrade & Audit Patches (PR #6) | ✅ **Merged** | [PR #6](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/6) / [`daff1b9`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/daff1b9) | 2026-08-30 |
 | Gitleaks Hard-Fail Enforcement (PR #7) | ✅ **Merged** | [PR #7](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/7) / [`ea2e714`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/ea2e714) | 2026-08-30 |
+| OpenAPI Specification Completeness (Phase 3 PR 1) | ✅ **Merged** | [`f7760d6`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/f7760d6) | 2026-08-30 |
+
 
 ### ⚠️ Known Risks / Watchlist
 - **Dependency override ranges** — pinned to caret (`^`) in `pnpm-workspace.yaml` as of [`0e4bd23`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/0e4bd23). Check: `pnpm list find-my-way @fastify/static nanoid cross-spawn vite vitest --depth=0` after any `pnpm install`, confirm versions stay within the pinned caret ranges and pass `pnpm audit --audit-level=high`. Last checked: 2026-08-30.
