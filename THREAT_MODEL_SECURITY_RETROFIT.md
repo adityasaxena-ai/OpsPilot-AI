@@ -145,3 +145,15 @@ Matched exactly against 21 registered Fastify plugins.
 ### 7.5 Seeded Demo Accounts & Production Scope (R-15)
 - **Baseline Credentials:** The database seed script (`prisma/seed.ts`) seeds 4 accounts matching the 4 RBAC roles: `viewer`, `sre`, `commander`, `admin`.
 - **Accepted Risk Statement:** Known demo credentials are provided for local interactive evaluation and demo convenience. This is an **explicit accepted risk** within the scope of this project. Production deployments (Railway) require a one-time manual seeding process with non-default passwords.
+
+## 8. Fail-Closed Authentication Fallback Fix (R-17)
+
+### 8.1 Fail-Open Risk in Development/Staging Fallback (R-17)
+- **Target File:** `apps/api/src/modules/auth/auth.middleware.ts`
+- **Vulnerability:** Previously, `const isDevOrDemo = process.env.NODE_ENV !== 'production' || process.env['ENABLE_DEMO_AUTH'] === 'true';` evaluated to `true` whenever `NODE_ENV` was set to `development`, `test`, `staging`, or left unset. As a result, any unauthenticated request without a Bearer token automatically defaulted to `dev-user-admin` with `SRE_OPERATOR` permissions.
+- **Why Unnoticed:** All automated integration tests and manual probes executed with `NODE_ENV` set to `test` or unset, causing `extractPrincipal()` to silently supply `dev-user-admin` identity instead of exercising the true 401 unauthenticated rejection path.
+- **Remediation & Fail-Closed Behavior:**
+  1. Modified `isDevOrDemo` to check strictly `process.env['ENABLE_DEMO_AUTH'] === 'true'`. Dropped `NODE_ENV !== 'production'` so that fallback authentication fails closed by default in all environments unless explicitly opted in via `ENABLE_DEMO_AUTH=true`.
+  2. Added an explicit startup warning logger when `ENABLE_DEMO_AUTH=true` is detected at process startup to ensure visibility of demo authentication mode.
+  3. Retained the existing R-05 production crash guard (`ENABLE_DEMO_AUTH=true` + `NODE_ENV=production` causes immediate process termination).
+

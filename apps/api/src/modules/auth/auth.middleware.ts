@@ -15,6 +15,14 @@ if (process.env.NODE_ENV === 'production' && process.env['ENABLE_DEMO_AUTH'] ===
   process.exit(1);
 }
 
+if (process.env['ENABLE_DEMO_AUTH'] === 'true') {
+  console.warn(
+    '\n⚠️  ENABLE_DEMO_AUTH is active — all requests without a valid token are\n' +
+    '    being treated as dev-user-admin (SRE_OPERATOR). This must never be\n' +
+    '    true in a real deployment.\n'
+  );
+}
+
 declare module 'fastify' {
   interface FastifyRequest {
     user?: AuthenticatedPrincipal;
@@ -41,9 +49,9 @@ export function extractPrincipal(request: FastifyRequest): { principal: Authenti
     return { principal: parsed };
   }
 
-  // Development / Staging fallback when NODE_ENV !== 'production' or ENABLE_DEMO_AUTH === 'true'
-  const isDevOrDemo = process.env.NODE_ENV !== 'production' || process.env['ENABLE_DEMO_AUTH'] === 'true';
-  if (isDevOrDemo) {
+  // Explicit opt-in fallback when ENABLE_DEMO_AUTH === 'true'
+  const isDemoAuthEnabled = process.env['ENABLE_DEMO_AUTH'] === 'true';
+  if (isDemoAuthEnabled) {
     const operatorId = (request.headers['x-operator-id'] as string) || (request.body as any)?.approvedBy || 'dev-user-admin';
     const roles: Role[] = operatorId.includes('commander')
       ? ['INCIDENT_COMMANDER']
@@ -61,9 +69,10 @@ export function extractPrincipal(request: FastifyRequest): { principal: Authenti
     };
   }
 
-  // Production mode strictly requires valid Bearer token
+  // Fail closed by default for all unauthenticated requests
   return { principal: null, errorCode: 'AUTHENTICATION_REQUIRED' };
 }
+
 
 export async function attachUserContext(request: FastifyRequest, _reply: FastifyReply) {
   const { principal } = extractPrincipal(request);
