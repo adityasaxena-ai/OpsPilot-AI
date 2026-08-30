@@ -22,7 +22,7 @@ export const simulatorRoutes: FastifyPluginAsync = async (app) => {
           type: 'object',
           properties: {
             success: { type: 'boolean' },
-            data: { type: 'object', additionalProperties: true },
+            data: { type: 'array', items: { type: 'object', additionalProperties: true } },
           },
         },
       },

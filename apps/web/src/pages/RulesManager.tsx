@@ -51,7 +51,8 @@ export function RulesManager() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rules'] }),
   });
 
-  const rules = (rulesData?.data as ThresholdRule[] | undefined) ?? [];
+  const rules = Array.isArray(rulesData?.data) ? (rulesData.data as ThresholdRule[]) : [];
+
 
   return (
     <div className="space-y-6 fade-in">

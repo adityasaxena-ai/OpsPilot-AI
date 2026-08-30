@@ -187,8 +187,9 @@ export function CommandCenter() {
   });
 
   const overview = overviewData?.data as AnalyticsOverview | undefined;
-  const simServices = (simData?.data as SimService[] | undefined) ?? [];
-  const recentIncidents = (incidentsData?.data as Incident[] | undefined) ?? [];
+  const simServices = Array.isArray(simData?.data) ? (simData.data as SimService[]) : [];
+  const recentIncidents = Array.isArray(incidentsData?.data) ? (incidentsData.data as Incident[]) : [];
+
   const telemetryStatus = telemetryData?.data;
   const isReplayActive = telemetryStatus?.providerName === 'replay' || telemetryStatus?.isReplaying === true;
 

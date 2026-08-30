@@ -36,7 +36,8 @@ export function ServicesPage() {
     refetchInterval: 15_000,
   });
 
-  const services = (data?.data as Service[] | undefined) ?? [];
+  const services = Array.isArray(data?.data) ? (data.data as Service[]) : [];
+
   const t1 = services.filter((s) => s.tier === 'T1');
   const t2 = services.filter((s) => s.tier === 'T2');
   const t3Plus = services.filter((s) => s.tier !== 'T1' && s.tier !== 'T2');

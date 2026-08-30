@@ -108,7 +108,8 @@ export function IncidentList() {
     refetchInterval: 15_000,
   });
 
-  const rawIncidents = (data?.data as Incident[] | undefined) ?? [];
+  const rawIncidents = Array.isArray(data?.data) ? (data.data as Incident[]) : [];
+
   const total = (data?.meta as { total?: number } | undefined)?.total ?? 0;
 
   // Extract unique service names for the Service Filter dropdown
