@@ -144,7 +144,9 @@ export async function buildApp() {
   await app.register(knowledgeRoutes, { prefix: '/api/v1/knowledge' });
 
   // ── Global error handler ───────────────────────────────────────────────
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error: any, _request, reply) => {
+
+
     app.log.error(error);
     const statusCode = error.statusCode ?? 500;
     void reply.status(statusCode).send({
@@ -155,6 +157,7 @@ export async function buildApp() {
       },
     });
   });
+
 
   return app;
 }
