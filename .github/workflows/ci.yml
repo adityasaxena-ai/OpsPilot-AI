@@ -122,17 +122,12 @@ jobs:
         run: pnpm audit --audit-level=high
 
 
-      # ── 10. Secret scan with gitleaks (report-only) ────────────────────────
-      # Full-history scan on the first run to surface any historical leaks.
-      # Incremental on subsequent PRs (HEAD only via --baseline-path).
-      # First-run policy: report-only (failure-exit-code 0).
-      # Once baseline is reviewed, set failure-exit-code to 1 to enforce.
-      - name: Secret scan — gitleaks (report-only)
+      # ── 10. Secret scan with gitleaks (enforced) ───────────────────────────
+      # Scans repo history for hardcoded secrets, api keys, and tokens.
+      # Hard-fails CI if any secret leaks are detected.
+      - name: Secret scan — gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Report-only: don't fail the build until baseline is acknowledged.
-          # Remove/change when ready to enforce: set GITLEAKS_ENABLE_UPLOAD_ARTIFACT
-          # and use a .gitleaks.toml allowlist for known CI-dummy values.
           GITLEAKS_ENABLE_COMMENTS: false
-        continue-on-error: true
+
