@@ -52,3 +52,30 @@ export function parseJwt(token: string, options: JwtVerifyOptions = {}): Authent
     return null;
   }
 }
+
+export interface JwtSignUserOptions {
+  id: string;
+  username: string;
+  role: string;
+  email?: string | null;
+  name?: string | null;
+}
+
+export function signJwt(user: JwtSignUserOptions): string {
+  const config = getConfig();
+  const payload = {
+    sub: user.id,
+    username: user.username,
+    name: user.name || user.username,
+    email: user.email || `${user.username}@opspilot.dev`,
+    role: user.role,
+    roles: [user.role],
+    iss: 'opspilot-api',
+  };
+
+  return jwt.sign(payload, config.JWT_SECRET, {
+    algorithm: 'HS256',
+    expiresIn: '12h',
+  });
+}
+

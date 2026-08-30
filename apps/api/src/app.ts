@@ -3,7 +3,9 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { getConfig } from '@opspilot/config';
+import { authRoutes } from './modules/auth/auth.routes.js';
 import { healthRoutes } from './modules/health/health.routes.js';
+
 import { servicesRoutes } from './modules/services/services.routes.js';
 import { alertsRoutes } from './modules/alerts/alerts.routes.js';
 import { incidentsRoutes } from './modules/incidents/incidents.routes.js';
@@ -102,7 +104,9 @@ export async function buildApp() {
     health: '/health',
   }));
   await app.register(healthRoutes, { prefix: '/health' });
+  await app.register(authRoutes, { prefix: '/api/v1/auth' });
   await app.register(eventsRoutes, { prefix: '/api/v1/events' });
+
   await app.register(alertsRoutes, { prefix: '/api/v1/alerts' });
   await app.register(incidentsRoutes, { prefix: '/api/v1/incidents' });
   await app.register(servicesRoutes, { prefix: '/api/v1/services' });
