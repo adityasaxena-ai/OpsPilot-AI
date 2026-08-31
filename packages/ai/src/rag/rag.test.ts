@@ -1,8 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { cosineSimilarity } from './similarity.js';
 import { chunkText } from './chunking.js';
 import { performGroundedRetrieval } from './retrieval.js';
 import type { PrismaClient } from '@prisma/client';
+
+// Mock embedding generation so RAG unit tests do not invoke getConfig() or require env variables
+vi.mock('./embedding-provider.js', () => ({
+  generateEmbedding: vi.fn().mockResolvedValue({
+    embedding: [0.0, 0.0, 0.0],
+    providerName: 'mock-synthetic-test',
+  }),
+}));
 
 describe('RAG Cosine Similarity Unit Tests', () => {
   it('calculates 1.0 for identical vectors', () => {
@@ -53,11 +61,6 @@ describe('RAG Character Chunking Unit Tests', () => {
 });
 
 describe('RAG Retrieval Abstention Unit Test', () => {
-  beforeEach(() => {
-    process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/opspilot';
-    process.env.JWT_SECRET = 'test-jwt-secret-key-32-chars-long!!';
-  });
-
   it('returns INSUFFICIENT_EVIDENCE when no chunks clear similarity threshold', async () => {
     const mockPrisma = {
       knowledgeChunk: {
