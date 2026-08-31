@@ -16,6 +16,7 @@ import { AuditLog } from './pages/AuditLog';
 import { Settings } from './pages/Settings';
 import { RulesManager } from './pages/RulesManager';
 import { NotFound } from './pages/NotFound';
+import { AuthProvider } from './context/AuthContext';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -56,7 +57,9 @@ if (!root) throw new Error('No #root element found');
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 );
