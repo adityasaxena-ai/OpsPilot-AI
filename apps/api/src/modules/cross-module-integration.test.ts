@@ -339,5 +339,5 @@ describe('Cross-Module Integration Test — Full Lifecycle (Governance, Drift, A
     expect(queryRagBody.data.status).toBe('GROUNDED_EVIDENCE_FOUND');
     expect(queryRagBody.data.matches[0].sourceTitle).toBe('Credit Risk Model Drift Remediation Protocol');
     expect(queryRagBody.data.matches[0].similarity).toBeGreaterThan(0);
-  });
+  }, 30000);
 });

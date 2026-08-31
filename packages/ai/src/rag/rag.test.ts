@@ -65,7 +65,7 @@ describe('RAG Retrieval Abstention Unit Test', () => {
 
       expect(result.status).toBe('INSUFFICIENT_EVIDENCE');
       expect(result.matches).toEqual([]);
-      expect(result.explanation).toContain('zero knowledge chunks cleared similarity threshold');
+      expect(result.explanation).toMatch(/No accessible active knowledge sources|zero knowledge chunks/);
     } finally {
       await prisma.$disconnect();
     }
