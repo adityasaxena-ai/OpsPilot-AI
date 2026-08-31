@@ -129,6 +129,10 @@ export function IncidentDetail() {
         });
       }
     },
+    onError: (err: any) => {
+      setExecutionState('FAILURE');
+      setExecutionMessage(`Failed to propose remediation: ${err?.message || err?.error?.message || 'Error'}`);
+    },
   });
 
   const [executionState, setExecutionState] = useState<'IDLE' | 'EXECUTING' | 'SUCCESS' | 'FAILURE'>('IDLE');
@@ -160,11 +164,17 @@ export function IncidentDetail() {
     },
   });
 
+  const [statusError, setStatusError] = useState<string | null>(null);
+
   const updateStatusMutation = useMutation({
     mutationFn: (newStatus: string) => api.incidents.updateStatus(id!, newStatus),
     onSuccess: () => {
+      setStatusError(null);
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
+    },
+    onError: (err: any) => {
+      setStatusError(err?.message || err?.error?.message || 'Failed to update incident status');
     },
   });
 
@@ -216,6 +226,9 @@ export function IncidentDetail() {
       refetchTimeline();
       refetchEvidence();
     },
+    onError: (err: any) => {
+      setSseError(`Investigation failed: ${err?.message || err?.error?.message || 'Error'}`);
+    },
   });
 
   const rcaMutation = useMutation({
@@ -223,6 +236,9 @@ export function IncidentDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
+    },
+    onError: (err: any) => {
+      setSseError(`RCA failed: ${err?.message || err?.error?.message || 'Error'}`);
     },
   });
 
@@ -232,10 +248,16 @@ export function IncidentDetail() {
       queryClient.invalidateQueries({ queryKey: ['incident', id] });
       refetchTimeline();
     },
+    onError: (err: any) => {
+      setSseError(`Postmortem generation failed: ${err?.message || err?.error?.message || 'Error'}`);
+    },
   });
 
   const summarizeTimelineMutation = useMutation({
     mutationFn: () => api.ai.summarizeTimeline(id!),
+    onError: (err: any) => {
+      setSseError(`Timeline summary failed: ${err?.message || err?.error?.message || 'Error'}`);
+    },
   });
 
   const handleSendMessage = () => {

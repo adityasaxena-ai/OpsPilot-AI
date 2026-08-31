@@ -62,6 +62,9 @@ export function ChaosLab() {
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       refetchStatus();
     },
+    onError: (err: any) => {
+      setLastResult(`❌ Healing Error: ${err?.message || err?.error?.message || 'Failed to heal service'}`);
+    },
   });
 
   const scenarios = Array.isArray(scenariosData?.data) ? (scenariosData.data as Scenario[]) : [];

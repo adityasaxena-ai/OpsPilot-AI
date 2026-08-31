@@ -31,24 +31,42 @@ export function RulesManager() {
     queryFn: () => api.rules.list(),
   });
 
+  const [ruleError, setRuleError] = useState<string | null>(null);
+
   const createRuleMutation = useMutation({
     mutationFn: (rule: typeof newRule) => api.rules.create(rule),
     onSuccess: () => {
+      setRuleError(null);
       queryClient.invalidateQueries({ queryKey: ['rules'] });
       setShowCreateModal(false);
       setNewRule({ name: '', metric: 'errorRatePercent', operator: 'GT', threshold: 10, severity: 'P2' });
+    },
+    onError: (err: any) => {
+      setRuleError(err?.message || err?.error?.message || 'Failed to create threshold rule.');
     },
   });
 
   const toggleRuleMutation = useMutation({
     mutationFn: ({ id, isEnabled }: { id: string; isEnabled: boolean }) =>
       api.rules.update(id, { isEnabled }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rules'] }),
+    onSuccess: () => {
+      setRuleError(null);
+      queryClient.invalidateQueries({ queryKey: ['rules'] });
+    },
+    onError: (err: any) => {
+      setRuleError(err?.message || err?.error?.message || 'Failed to toggle rule state.');
+    },
   });
 
   const deleteRuleMutation = useMutation({
     mutationFn: (id: string) => api.rules.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rules'] }),
+    onSuccess: () => {
+      setRuleError(null);
+      queryClient.invalidateQueries({ queryKey: ['rules'] });
+    },
+    onError: (err: any) => {
+      setRuleError(err?.message || err?.error?.message || 'Failed to delete threshold rule.');
+    },
   });
 
   const rules = Array.isArray(rulesData?.data) ? (rulesData.data as ThresholdRule[]) : [];

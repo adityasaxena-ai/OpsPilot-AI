@@ -1,8 +1,10 @@
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Activity, Bell, Clock, Zap, Server, TrendingUp, Shield, Sparkles, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Activity, Bell, Clock, Zap, Server, TrendingUp, Shield, Sparkles, ArrowRight, Lock, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { severityColor, timeAgo, formatDuration } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 interface AnalyticsOverview {
   activeIncidents: number;
@@ -169,6 +171,10 @@ export function CommandCenter() {
     refetchInterval: 10_000,
   });
 
+  const { hasPermission } = useAuth();
+  const hasAdminPermission = hasPermission('ADMIN_CONFIGURATION');
+  const [providerError, setProviderError] = useState<{ message: string; type: '401' | '403' | 'error' } | null>(null);
+
   const setProviderMutation = useMutation({
     mutationFn: async (provider: 'otel' | 'mock' | 'replay') => {
       if (provider === 'replay') {
@@ -178,11 +184,32 @@ export function CommandCenter() {
       return api.telemetry.setProvider(provider);
     },
     onSuccess: (data) => {
+      setProviderError(null);
       if (data?.data) {
         queryClient.setQueryData(['telemetry', 'status'], { success: true, data: data.data });
       }
       queryClient.invalidateQueries({ queryKey: ['telemetry'] });
       queryClient.invalidateQueries({ queryKey: ['simulator'] });
+    },
+    onError: (err: any) => {
+      const status = err?.status || err?.response?.status;
+      const msg = err?.message || err?.error?.message || '';
+      if (status === 401 || msg.includes('401') || msg.includes('AUTHENTICATION_REQUIRED') || msg.includes('authentication required')) {
+        setProviderError({
+          type: '401',
+          message: 'Authentication required. Please sign in to switch telemetry providers.',
+        });
+      } else if (status === 403 || msg.includes('403') || msg.includes('FORBIDDEN') || msg.includes('permission')) {
+        setProviderError({
+          type: '403',
+          message: 'Permission denied: Requires Security Admin role to switch telemetry providers.',
+        });
+      } else {
+        setProviderError({
+          type: 'error',
+          message: msg || 'Failed to update telemetry provider.',
+        });
+      }
     },
   });
 
@@ -192,6 +219,7 @@ export function CommandCenter() {
 
   const telemetryStatus = telemetryData?.data;
   const isReplayActive = telemetryStatus?.providerName === 'replay' || telemetryStatus?.isReplaying === true;
+  const isOtelConfigured = telemetryStatus?.details?.configured !== false;
 
   return (
     <div className="space-y-6 fade-in">
@@ -210,6 +238,16 @@ export function CommandCenter() {
           Live · refreshes every 10s
         </div>
       </div>
+
+      {/* Mutation Error Alert Banner */}
+      {providerError && (
+        <div className="p-3 rounded-lg border bg-rose-500/10 border-rose-500/30 text-rose-400 text-xs flex items-center justify-between gap-2 fade-in">
+          <div className="flex items-center gap-2">
+            <Lock size={14} className="flex-none text-rose-400" />
+            <span>{providerError.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Telemetry Provider Status Banner */}
       <div
@@ -278,8 +316,15 @@ export function CommandCenter() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setProviderMutation.mutate('otel')}
-            disabled={setProviderMutation.isPending}
-            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
+            disabled={setProviderMutation.isPending || !hasAdminPermission || !isOtelConfigured}
+            title={
+              !hasAdminPermission
+                ? 'Requires Security Admin role'
+                : !isOtelConfigured
+                ? 'OTel Collector Not Configured — Live endpoint unavailable in this environment.'
+                : 'Switch to OpenTelemetry Live Endpoint'
+            }
+            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: !isReplayActive && telemetryStatus?.providerName === 'otel'
                 ? telemetryStatus?.status === 'HEALTHY'
@@ -310,6 +355,7 @@ export function CommandCenter() {
           <button
             onClick={() => setProviderMutation.mutate('mock')}
             disabled={setProviderMutation.isPending}
+            title="Switch to Demo Simulation Telemetry"
             className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
             style={{
               background: !isReplayActive && telemetryStatus?.providerName === 'mock' ? 'hsl(220 90% 56% / 0.2)' : 'transparent',
@@ -322,8 +368,9 @@ export function CommandCenter() {
 
           <button
             onClick={() => setProviderMutation.mutate('replay')}
-            disabled={setProviderMutation.isPending}
-            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50"
+            disabled={setProviderMutation.isPending || !hasAdminPermission}
+            title={!hasAdminPermission ? 'Requires Security Admin role' : 'Start Telemetry Replay Mode'}
+            className="px-2.5 py-1 rounded text-xs font-medium border transition-all hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: isReplayActive ? 'hsl(265 85% 65% / 0.2)' : 'transparent',
               borderColor: isReplayActive ? 'hsl(265 85% 65% / 0.4)' : 'hsl(var(--border))',
