@@ -15,6 +15,7 @@ _Last updated: 2026-08-30, by Phase 3 PR 1 OpenAPI Completeness merge_
 
 ### ⚠️ Known Risks / Watchlist
 - **Dependency override ranges** — pinned to caret (`^`) in `pnpm-workspace.yaml` as of [`0e4bd23`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/0e4bd23). Check: `pnpm list find-my-way @fastify/static nanoid cross-spawn vite vitest --depth=0` after any `pnpm install`, confirm versions stay within the pinned caret ranges and pass `pnpm audit --audit-level=high`. Last checked: 2026-08-30.
+- **Package `test` scripts** — confirm all packages with `.test.ts` files have a working `test` script (`"test": "vitest run --passWithNoTests"`) before trusting any `pnpm test` total as complete. Last checked: 2026-08-31.
 
 ---
 

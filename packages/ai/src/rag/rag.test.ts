@@ -1,8 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { cosineSimilarity } from './similarity.js';
 import { chunkText } from './chunking.js';
 import { performGroundedRetrieval } from './retrieval.js';
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
+
+// Mock embedding generation so RAG unit tests do not invoke getConfig() or require env variables
+vi.mock('./embedding-provider.js', () => ({
+  generateEmbedding: vi.fn().mockResolvedValue({
+    embedding: [0.0, 0.0, 0.0],
+    providerName: 'mock-synthetic-test',
+  }),
+}));
 
 describe('RAG Cosine Similarity Unit Tests', () => {
   it('calculates 1.0 for identical vectors', () => {
@@ -54,20 +62,50 @@ describe('RAG Character Chunking Unit Tests', () => {
 
 describe('RAG Retrieval Abstention Unit Test', () => {
   it('returns INSUFFICIENT_EVIDENCE when no chunks clear similarity threshold', async () => {
-    const prisma = new PrismaClient();
-    try {
-      // Query against threshold 0.9999 with synthetic mock vectors
-      const result = await performGroundedRetrieval(
-        prisma,
-        'Completely unrelated non-existent concept xyz123',
-        { threshold: 0.9999, topK: 5, userRoles: ['VIEWER'] }
-      );
+    const mockPrisma = {
+      knowledgeChunk: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'chunk-1',
+            content: 'Kubernetes pod crashloop backoff troubleshooting steps',
+            embedding: [0.1, 0.2, 0.3],
+            knowledgeSource: {
+              id: 'ks-1',
+              title: 'K8s Troubleshooting Guide',
+              sourceType: 'RUNBOOK',
+              isPublic: true,
+            },
+          },
+        ]),
+      },
+    } as unknown as PrismaClient;
 
-      expect(result.status).toBe('INSUFFICIENT_EVIDENCE');
-      expect(result.matches).toEqual([]);
-      expect(result.explanation).toContain('zero knowledge chunks cleared similarity threshold');
-    } finally {
-      await prisma.$disconnect();
-    }
+    const result = await performGroundedRetrieval(
+      mockPrisma,
+      'Completely unrelated non-existent concept xyz123',
+      { threshold: 0.9999, topK: 5, userRoles: ['VIEWER'] }
+    );
+
+    expect(result.status).toBe('INSUFFICIENT_EVIDENCE');
+    expect(result.matches).toEqual([]);
+    expect(result.explanation).toContain('zero knowledge chunks cleared similarity threshold');
+  });
+
+  it('returns INSUFFICIENT_EVIDENCE when database contains no knowledge sources', async () => {
+    const mockPrismaEmpty = {
+      knowledgeChunk: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as PrismaClient;
+
+    const result = await performGroundedRetrieval(
+      mockPrismaEmpty,
+      'Any query',
+      { threshold: 0.4, topK: 5, userRoles: ['VIEWER'] }
+    );
+
+    expect(result.status).toBe('INSUFFICIENT_EVIDENCE');
+    expect(result.matches).toEqual([]);
+    expect(result.explanation).toBe('No accessible active knowledge sources available in database.');
   });
 });

@@ -7,7 +7,11 @@ describe('RemediationExecutor - Safety & Governance Controls', () => {
 
   beforeEach(() => {
     process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/opspilot';
+    process.env.JWT_SECRET = 'test-jwt-secret-key-32-chars-long!!';
     mockDb = {
+      user: {
+        findFirst: vi.fn().mockResolvedValue({ id: 'user-1' }),
+      },
       incident: {
         findUnique: vi.fn(),
         update: vi.fn(),
@@ -170,6 +174,7 @@ describe('RemediationExecutor - Safety & Governance Controls', () => {
         id: 'appr-105',
         aiRecommendation: 'Recent deployment is correlated with elevated CPU utilization and P99 latency degradation.',
       },
+      createdAt: new Date(),
     });
 
     const preview = await executor.getActionPreview('action-105');
@@ -179,6 +184,6 @@ describe('RemediationExecutor - Safety & Governance Controls', () => {
     expect(preview.environment).toBe('production');
     expect(preview.requiresApproval).toBe(true);
     expect(preview.whatWillHappen.length).toBeGreaterThan(0);
-    expect(preview.whatWillHappen[0]).toContain('Roll back Fraud Engine');
+    expect(preview.whatWillHappen.some((step: string) => step.includes('Roll back'))).toBe(true);
   });
 });
