@@ -21,6 +21,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
               properties: {
                 database: { type: 'string' },
                 redis: { type: 'string' },
+                databaseError: { type: 'string' },
               },
             },
           },
@@ -37,6 +38,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
               properties: {
                 database: { type: 'string' },
                 redis: { type: 'string' },
+                databaseError: { type: 'string' },
               },
             },
           },
