@@ -47,10 +47,13 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
 
     // Check DB connectivity
     let dbStatus = 'ok';
+    let dbError: string | undefined = undefined;
     try {
       await db.$queryRaw`SELECT 1`;
-    } catch {
+    } catch (err) {
       dbStatus = 'error';
+      dbError = err instanceof Error ? err.message : String(err);
+      app.log.error(err, 'Healthcheck DB ping failed');
     }
 
     // Check Redis connectivity
@@ -71,6 +74,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
       dependencies: {
         database: dbStatus,
         redis: redisStatus,
+        ...(dbError ? { databaseError: dbError } : {}),
       },
     });
   });

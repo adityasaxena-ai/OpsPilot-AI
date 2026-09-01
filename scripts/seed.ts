@@ -35,21 +35,35 @@ async function main() {
 
   for (const userDef of demoUsers) {
     const passwordHash = await argon2.hash(userDef.password);
-    const user = await db.user.upsert({
-      where: { username: userDef.username },
-      update: {
-        passwordHash,
-        role: userDef.role,
-        name: userDef.name,
-      },
-      create: {
-        username: userDef.username,
-        passwordHash,
-        role: userDef.role,
-        name: userDef.name,
-        email: userDef.email,
+    const existing = await db.user.findFirst({
+      where: {
+        OR: [{ username: userDef.username }, { email: userDef.email }],
       },
     });
+
+    let user;
+    if (existing) {
+      user = await db.user.update({
+        where: { id: existing.id },
+        data: {
+          username: userDef.username,
+          passwordHash,
+          role: userDef.role,
+          name: userDef.name,
+          email: userDef.email,
+        },
+      });
+    } else {
+      user = await db.user.create({
+        data: {
+          username: userDef.username,
+          passwordHash,
+          role: userDef.role,
+          name: userDef.name,
+          email: userDef.email,
+        },
+      });
+    }
     console.log(`✅ Demo User created/updated: username=${user.username}, role=${user.role}`);
   }
 
