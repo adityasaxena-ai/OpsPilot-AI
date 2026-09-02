@@ -32,6 +32,12 @@ export function Settings() {
     onSuccess: (res) => {
       setTestResult(res.data);
     },
+    onError: (err: any) => {
+      setTestResult({
+        message: `Integration test failed: ${err?.message || err?.error?.message || 'Error'}`,
+        dispatchedTo: [],
+      });
+    },
   });
 
   const integrations = integrationsData?.data ?? {};

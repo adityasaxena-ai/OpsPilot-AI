@@ -27,9 +27,17 @@ export function AlertFeed() {
     refetchInterval: 10_000,
   });
 
+  const [ackError, setAckError] = useState<string | null>(null);
+
   const ackMutation = useMutation({
     mutationFn: (id: string) => api.alerts.update(id, { status: 'ACKNOWLEDGED' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+    onSuccess: () => {
+      setAckError(null);
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+    },
+    onError: (err: any) => {
+      setAckError(err?.message || err?.error?.message || 'Failed to acknowledge alert.');
+    },
   });
 
   const alerts = Array.isArray(data?.data) ? (data.data as Alert[]) : [];
