@@ -17,6 +17,18 @@ _Last updated: 2026-08-30, by Phase 3 PR 1 OpenAPI Completeness merge_
 - **Dependency override ranges** — pinned to caret (`^`) in `pnpm-workspace.yaml` as of [`0e4bd23`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/0e4bd23). Check: `pnpm list find-my-way @fastify/static nanoid cross-spawn vite vitest --depth=0` after any `pnpm install`, confirm versions stay within the pinned caret ranges and pass `pnpm audit --audit-level=high`. Last checked: 2026-08-30.
 - **Package `test` scripts** — confirm all packages with `.test.ts` files have a working `test` script (`"test": "vitest run --passWithNoTests"`) before trusting any `pnpm test` total as complete. Last checked: 2026-08-31.
 
+### 🛑 Permanent Standing Rules
+- **No Unsupervised Changes to `main`, Production Infrastructure, or Credentials** — Never run any of the following without the exact command being shown first and explicitly approved:
+  1. `git commit`, `git push`, `git reset --hard`, or any command that rewrites history or moves a branch pointer.
+  2. Any Railway CLI command that changes state (`variables set`, service restarts, redeploys triggered manually).
+  3. Any command that reads, uses, or acts on a credential, token, or database password — even read-only actions using such credentials must be flagged before running, and credentials must never be displayed in logs/outputs.
+  - *"Fix this"* is not blanket permission to execute changes. When something needs fixing, the mandatory workflow is:
+    1. Diagnose and explain what's wrong.
+    2. Propose the exact fix — the literal command or the literal diff.
+    3. Wait for explicit user approval of that specific action.
+    4. Only then execute.
+  - This rule applies with increased force during active incidents to prevent compounding risk.
+
 ---
 
 # Sim 2.1 Progress & Execution Record
