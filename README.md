@@ -18,6 +18,7 @@
 - [Overview](#overview)
 - [Monorepo Architecture](#monorepo-architecture)
 - [Public Cloud Deployment (Free Tier)](#public-cloud-deployment-free-tier)
+- [Security](#security)
 - [Local Quick Start](#local-quick-start)
 - [Telemetry Providers (Live OTel, Mock, Replay)](#telemetry-providers-live-otel-mock-replay)
 - [Incident Detection & Correlation Engine](#incident-detection--correlation-engine)
@@ -56,25 +57,73 @@ OpsPilot AI combines Observability, AIOps, Autonomous SRE Agents, Risk Managemen
 
 ## 🏗️ Monorepo Architecture
 
+```mermaid
+graph TD
+    subgraph Client["Web Browser Client"]
+        UI["React 18 / Vite SPA (@opspilot/web)<br/>Railway Web Deployment"]
+    end
+
+    subgraph AuthFlow["Authentication & Authorization Flow"]
+        AuthModal["Sign In Form (username/password)"]
+        JWTAuth["JWT Token Issuance (Argon2id validation)"]
+        AuthContext["AuthProvider (Bearer Token in Context)"]
+        RBAC["Fastify Auth Hooks & RBAC Role Guards"]
+    end
+
+    subgraph Backend["Fastify 5 API Server (@opspilot/api)"]
+        Routes["API Module Routes (/api/v1/*)"]
+        
+        subgraph Packages["Domain Logic Packages"]
+            AIPkg["@opspilot/ai<br/>(Gemini Provider, RAG Retrieval, Embedding & JSON)"]
+            TelemetryPkg["@opspilot/telemetry<br/>(OTel Live / Replay / Mock)"]
+            DetectionPkg["@opspilot/detection<br/>(RuleEngine & Correlation)"]
+            AgentSuite["@opspilot/agents<br/>(Triage, RCA, Investigation, Verification)"]
+            RiskEnginePkg["@opspilot/risk-engine<br/>(0-100 Quantitative Risk)"]
+            PolicyEnginePkg["@opspilot/policy-engine<br/>(Max Risk Ceiling & Approvals)"]
+            RemediationPkg["@opspilot/remediation<br/>(Tool Registry & Guard Chain)"]
+        end
+    end
+
+    subgraph Storage["Data Tier & Managed Cloud Services"]
+        Postgres["Neon / Local PostgreSQL 16<br/>(Prisma ORM — defined in prisma/schema.prisma)"]
+        RedisStore["Upstash / Local Redis 7<br/>(Deduplication & Telemetry Cache)"]
+        PromTarget["Prometheus Scraper (:9090)"]
+    end
+
+    UI --> AuthModal
+    AuthModal -->|POST /api/v1/auth/login| JWTAuth
+    JWTAuth -->|Bearer JWT| AuthContext
+    AuthContext -->|Authorization Header| RBAC
+    RBAC --> Routes
+    Routes --> Packages
+    TelemetryPkg --> PromTarget
+    TelemetryPkg --> RedisStore
+    DetectionPkg --> RedisStore
+    RemediationPkg --> Postgres
+    Packages --> Postgres
+```
+
+> **Note on Feature Flags:** Advanced modules (`ENABLE_GOVERNANCE_CONTROL_CENTER`, `ENABLE_DRIFT_MONITORING`, `ENABLE_AI_INCIDENT_MGMT`, `ENABLE_REPORTING`, `ENABLE_REMEDIATION_V2`) are present in compiled backend packages but remain dormant (evaluating `false`) in default deployments until explicitly enabled via environment variables.
+
 The repository is structured as a TypeScript monorepo using **pnpm workspaces** and **Turborepo**:
 
 ```text
 /Users/pankaja/AI Projects/OpsAI
 ├── apps/
-│   ├── api/            # Fastify 4 REST & SSE Backend Server (Port 3001)
+│   ├── api/            # Fastify 5 REST & SSE Backend Server (Port 3001)
 │   └── web/            # React 18 / Vite / Tailwind Control Tower UI (Port 3000)
 ├── packages/
 │   ├── types/          # Domain schemas & Zod validators
 │   ├── config/         # Environment loader & Zod config schema
 │   ├── telemetry/      # Telemetry Provider Abstraction (OTel, Replay, Mock)
 │   ├── detection/      # RuleEngine, CorrelationEngine, LifecycleManager, ImpactAnalyzer
-│   ├── ai/             # Gemini API Provider & SRE Mock Provider
+│   ├── ai/             # Gemini API Provider, RAG Retrieval & SRE Mock Provider
 │   ├── agents/         # Autonomous SRE AI Agents Suite
 │   ├── policy-engine/  # Deterministic Policy Engine
 │   ├── risk-engine/    # 0-100 Quantitative Risk Engine
 │   └── remediation/    # Executable Tool Registry & Safety Guard Chain
 ├── prisma/
-│   ├── schema.prisma   # PostgreSQL Prisma Schema (18 models, 14 enums)
+│   ├── schema.prisma   # PostgreSQL Prisma Schema (35 models, 14 enums)
 │   └── migrations/     # Version-controlled SQL migrations
 ├── scripts/
 │   └── seed.ts         # Database Seeding script
@@ -86,12 +135,22 @@ The repository is structured as a TypeScript monorepo using **pnpm workspaces** 
 
 OpsPilot AI is configured for easy zero-cost deployment to public cloud services for demonstrations and learning:
 
-- **Frontend**: [Vercel Free Tier](https://vercel.com) (`https://opspilot-web.vercel.app`)
-- **Backend API**: [Railway Free Tier](https://railway.app) / [Render Free Tier](https://render.com) (`https://opspilot-api.up.railway.app`)
+- **Frontend UI**: [Railway Free Tier](https://railway.app) (`https://opspilotweb-production.up.railway.app`)
+- **Backend API**: [Railway Free Tier](https://railway.app) (`https://opspilotapi-production.up.railway.app`)
 - **Database**: [Neon Managed Serverless PostgreSQL](https://neon.tech)
 - **Redis Cache**: [Upstash Managed Serverless Redis](https://upstash.com)
 
 👉 **For complete step-by-step instructions, view the [`DEPLOYMENT.md`](./DEPLOYMENT.md) guide.**
+
+---
+
+## 🔒 Security
+
+This project follows a threat-model-first approach for all security-relevant work. See:
+- [`THREAT_MODEL_SECURITY_RETROFIT.md`](./THREAT_MODEL_SECURITY_RETROFIT.md) — full risk register (R-01–R-18) and mitigations
+- [`AUTHZ_AUDIT.md`](./AUTHZ_AUDIT.md) — complete route-by-route authorization audit
+
+Report any security concerns by opening an issue on [GitHub Issues](https://github.com/adityasaxena-ai/OpsPilot-AI/issues) or contacting project maintainers.
 
 ---
 
