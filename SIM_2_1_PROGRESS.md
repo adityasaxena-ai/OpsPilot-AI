@@ -11,11 +11,13 @@ _Last updated: 2026-08-30, by Phase 3 PR 1 OpenAPI Completeness merge_
 | Fastify 4→5 Upgrade & Audit Patches (PR #6) | ✅ **Merged** | [PR #6](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/6) / [`daff1b9`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/daff1b9) | 2026-08-30 |
 | Gitleaks Hard-Fail Enforcement (PR #7) | ✅ **Merged** | [PR #7](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/7) / [`ea2e714`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/ea2e714) | 2026-08-30 |
 | OpenAPI Specification Completeness (Phase 3 PR 1) | ✅ **Merged** | [`f7760d6`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/f7760d6) | 2026-08-30 |
+| Mutation error handling & telemetry role-gating (PR #10) | ✅ **Merged & Confirmed Live in Production** | [PR #10](https://github.com/adityasaxena-ai/OpsPilot-AI/pull/10) / [`934bdea`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/934bdea4b8d86944ad0906175bc2593e5883be37) — commit hash cross-confirmed identical between GitHub's main HEAD and Railway's deployed build (deploymentId: `e35db7fd-9e34-4cde-a2e2-3148914dc6b3`, deployed `2026-09-02T08:23:52.516Z`) | 2026-09-02 |
 
 
 ### ⚠️ Known Risks / Watchlist
 - **Dependency override ranges** — pinned to caret (`^`) in `pnpm-workspace.yaml` as of [`0e4bd23`](https://github.com/adityasaxena-ai/OpsPilot-AI/commit/0e4bd23). Check: `pnpm list find-my-way @fastify/static nanoid cross-spawn vite vitest --depth=0` after any `pnpm install`, confirm versions stay within the pinned caret ranges and pass `pnpm audit --audit-level=high`. Last checked: 2026-08-30.
 - **Package `test` scripts** — confirm all packages with `.test.ts` files have a working `test` script (`"test": "vitest run --passWithNoTests"`) before trusting any `pnpm test` total as complete. Last checked: 2026-08-31.
+- **"Is it actually deployed" verification** — always cross-check a deployment's reported commit hash against the actual value from `git log` / GitHub directly (full hash, not the first 7 characters alone) before treating a deployment as confirmed current. A partial match or a plausible-looking timestamp is not sufficient — this project has been burned by stale/incorrect deployment claims multiple times (CommandCenter crash fix, AuthProvider fix, this one). Full-hash cross-confirmation is the standard now. Last checked: 2026-09-02.
 
 ### 🛑 Permanent Standing Rules
 - **No Unsupervised Changes to `main`, Production Infrastructure, or Credentials** — Never run any of the following without the exact command being shown first and explicitly approved:
