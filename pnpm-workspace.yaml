@@ -17,6 +17,7 @@ onlyBuiltDependencies:
   - prisma
 
 overrides:
+  fast-uri: "^3.1.6"
   find-my-way: "^9.6.1"
   "@fastify/static": "^10.1.2"
   nanoid: "^3.3.18"
