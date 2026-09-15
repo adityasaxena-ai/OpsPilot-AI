@@ -99,7 +99,7 @@ export async function buildApp() {
       },
       servers: [
         { url: 'http://localhost:3001', description: 'Local Development Server' },
-        { url: 'https://opspilotapi-production.up.railway.app', description: 'Production Server' },
+        { url: 'https://opspilot-ai-0seb.onrender.com', description: 'Production Server' },
       ],
       components: {
         securitySchemes: {
