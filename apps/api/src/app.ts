@@ -69,7 +69,7 @@ export async function buildApp() {
       if (!origin) return cb(null, true);
       const allowedOrigins = [
         config.WEB_URL,
-        'https://opspilotweb-production.up.railway.app',
+        'https://opspilot-web-wf6g.onrender.com',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
         'http://localhost:5173',

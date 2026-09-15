@@ -135,8 +135,8 @@ The repository is structured as a TypeScript monorepo using **pnpm workspaces** 
 
 OpsPilot AI is configured for easy zero-cost deployment to public cloud services for demonstrations and learning:
 
-- **Frontend UI**: [Railway Free Tier](https://railway.app) (`https://opspilotweb-production.up.railway.app`)
-- **Backend API**: [Railway Free Tier](https://railway.app) (`https://opspilotapi-production.up.railway.app`)
+- **Frontend UI**: [Render Free Tier](https://render.com) (`https://opspilot-web-wf6g.onrender.com`)
+- **Backend API**: [Render Free Tier](https://render.com) (`https://opspilot-ai-0seb.onrender.com`)
 - **Database**: [Neon Managed Serverless PostgreSQL](https://neon.tech)
 - **Redis Cache**: [Upstash Managed Serverless Redis](https://upstash.com)
 
