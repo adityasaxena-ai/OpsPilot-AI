@@ -69,7 +69,7 @@ export async function buildApp() {
       if (!origin) return cb(null, true);
       const allowedOrigins = [
         config.WEB_URL,
-        'https://opspilotweb-production.up.railway.app',
+        'https://opspilot-web-wf6g.onrender.com',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
         'http://localhost:5173',
@@ -99,7 +99,7 @@ export async function buildApp() {
       },
       servers: [
         { url: 'http://localhost:3001', description: 'Local Development Server' },
-        { url: 'https://opspilotapi-production.up.railway.app', description: 'Production Server' },
+        { url: 'https://opspilot-ai-0seb.onrender.com', description: 'Production Server' },
       ],
       components: {
         securitySchemes: {
