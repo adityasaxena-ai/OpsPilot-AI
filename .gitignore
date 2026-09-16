@@ -38,4 +38,5 @@ scratch/
 opspilot-3d-demo/
 opspilot_test_demo1/
 *.mp4
+!apps/web/public/login-background.mp4
 

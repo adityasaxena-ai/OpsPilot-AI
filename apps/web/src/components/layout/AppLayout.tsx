@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { MaintenanceModal } from '../common/MaintenanceModal';
 import { useAuth } from '@/context/AuthContext';
 import { LoginModal } from '../auth/LoginModal';
-
+import { LoginLanding } from '../auth/LoginLanding';
 
 const navItems = [
   { to: '/', label: 'Command Center', icon: LayoutDashboard, exact: true },
@@ -43,6 +43,9 @@ export function AppLayout() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
 
+  if (!isAuthenticated) {
+    return <LoginLanding />;
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden" style={{ background: 'hsl(var(--bg-app))' }}>
