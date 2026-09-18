@@ -19,6 +19,10 @@ interface AnalyticsOverview {
   sloCompliancePercent: number;
 }
 
+interface AutomationStats {
+  estimatedHoursSaved: number;
+}
+
 interface SimService {
   serviceId: string;
   cpuPercent: number;
@@ -171,6 +175,12 @@ export function CommandCenter() {
     refetchInterval: 10_000,
   });
 
+  const { data: automationData } = useQuery({
+    queryKey: ['analytics', 'automation'],
+    queryFn: () => api.analytics.automation(),
+    refetchInterval: 15_000,
+  });
+
   const { hasPermission } = useAuth();
   const hasAdminPermission = hasPermission('ADMIN_CONFIGURATION');
   const [providerError, setProviderError] = useState<{ message: string; type: '401' | '403' | 'error' } | null>(null);
@@ -214,6 +224,7 @@ export function CommandCenter() {
   });
 
   const overview = overviewData?.data as AnalyticsOverview | undefined;
+  const automation = automationData?.data as AutomationStats | undefined;
   const simServices = Array.isArray(simData?.data) ? (simData.data as SimService[]) : [];
   const recentIncidents = Array.isArray(incidentsData?.data) ? (incidentsData.data as Incident[]) : [];
 
@@ -437,10 +448,11 @@ export function CommandCenter() {
           to="/analytics"
         />
         <MetricCard
-          label="SLO Compliance"
-          value={overview?.sloCompliancePercent != null ? `${overview.sloCompliancePercent}%` : '—'}
+          label="Toil Hours Saved"
+          value={automation?.estimatedHoursSaved != null ? `${automation.estimatedHoursSaved.toFixed(0)}h` : '—'}
           icon={Shield}
           color="hsl(142 72% 45%)"
+          sub="AI-automated actions, modelled"
         />
         <MetricCard
           label="Automation Rate"
