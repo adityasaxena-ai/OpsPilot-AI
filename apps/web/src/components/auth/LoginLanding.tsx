@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth, Role } from '@/context/AuthContext';
 import { Shield, Key, User, LogIn, Lock, Activity, Volume2 } from 'lucide-react';
+
+const LOOP_FADE_SECONDS = 1.5; // how long the fade-out/fade-in ramp lasts at the loop point
 
 export function LoginLanding() {
   const { login, isLoggingIn, loginError, switchRole } = useAuth();
@@ -8,6 +10,30 @@ export function LoginLanding() {
   const [password, setPassword] = useState('');
   const [hasEntered, setHasEntered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleTimeUpdate = () => {
+      if (!video.duration || !isFinite(video.duration)) return;
+      const fadeIn = Math.min(video.currentTime / LOOP_FADE_SECONDS, 1);
+      const fadeOut = Math.min((video.duration - video.currentTime) / LOOP_FADE_SECONDS, 1);
+      video.volume = Math.max(0, Math.min(fadeIn, fadeOut, 1));
+    };
+
+    const handleEnded = () => {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    };
+
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('ended', handleEnded);
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, []);
 
   const handleEnter = () => {
     if (!hasEntered) {
@@ -38,7 +64,6 @@ export function LoginLanding() {
         ref={videoRef}
         autoPlay
         muted
-        loop
         playsInline
         className="absolute inset-0 w-full h-full object-cover z-0"
       >
