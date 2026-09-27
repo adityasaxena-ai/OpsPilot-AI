@@ -65,7 +65,7 @@ export function LoginLanding() {
         autoPlay
         muted
         playsInline
-        className="absolute inset-0 w-full h-full object-cover z-0 scale-[2.2]"
+        className="absolute inset-0 w-full h-full object-cover z-0"
       >
         <source src="/login-background.mp4" type="video/mp4" />
       </video>
