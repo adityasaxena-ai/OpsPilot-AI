@@ -90,15 +90,15 @@ export function LoginLanding() {
       )}
 
       {/* ── Glassmorphism Login Card ── */}
-      <div className="relative z-20 w-full max-w-md mx-4 rounded-2xl border border-slate-700/60 bg-slate-900/80 backdrop-blur-xl p-6 md:p-8 shadow-2xl text-slate-100 space-y-6">
+      <div className="relative z-20 w-full max-w-md mx-4 rounded-2xl border border-white/20 bg-white/[0.06] backdrop-blur-2xl p-6 md:p-8 shadow-2xl text-slate-100 space-y-6">
         {/* Branding Header */}
-        <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
-          <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow-md">
+        <div className="flex items-center gap-3 pb-4 border-b border-white/10">
+          <div className="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-300/40 flex items-center justify-center shadow-md">
             <Shield className="w-6 h-6 text-white" />
           </div>
           <div>
             <h2 className="text-xl font-bold tracking-tight text-white">OpsPilot AI</h2>
-            <p className="text-xs text-slate-400">Autonomous Operations Command Platform</p>
+            <p className="text-xs text-slate-300/80">Autonomous Operations Command Platform</p>
           </div>
         </div>
 
@@ -121,7 +121,7 @@ export function LoginLanding() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter username"
-                className="w-full pl-10 pr-3 py-2 rounded-xl text-xs bg-slate-950/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                className="w-full pl-10 pr-3 py-2 rounded-xl text-xs bg-white/5 border border-white/15 text-white placeholder-slate-400 outline-none focus:border-blue-400/70 focus:ring-1 focus:ring-blue-400/60 transition-all"
               />
             </div>
           </div>
@@ -135,7 +135,7 @@ export function LoginLanding() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full pl-10 pr-3 py-2 rounded-xl text-xs bg-slate-950/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                className="w-full pl-10 pr-3 py-2 rounded-xl text-xs bg-white/5 border border-white/15 text-white placeholder-slate-400 outline-none focus:border-blue-400/70 focus:ring-1 focus:ring-blue-400/60 transition-all"
               />
             </div>
           </div>
@@ -143,7 +143,7 @@ export function LoginLanding() {
           <button
             type="submit"
             disabled={isLoggingIn}
-            className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-blue-600 hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/30 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-blue-500/80 hover:bg-blue-500 border border-blue-300/40 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <LogIn size={15} />
             {isLoggingIn ? 'Authenticating...' : 'Sign In'}
@@ -151,15 +151,15 @@ export function LoginLanding() {
         </form>
 
         {/* Quick Demo Login Role Buttons */}
-        <div className="pt-4 border-t border-slate-800 space-y-2.5">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="pt-4 border-t border-white/10 space-y-2.5">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-300/70">
             Quick Demo Login (Seeded RBAC Roles)
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => handleQuickLogin('VIEWER')}
-              className="p-2.5 text-left rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/60 transition-all flex flex-col"
+              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex flex-col"
             >
               <span className="font-semibold text-xs text-blue-400">🔵 Viewer</span>
               <span className="text-[10px] text-slate-400">Read-Only</span>
@@ -167,7 +167,7 @@ export function LoginLanding() {
             <button
               type="button"
               onClick={() => handleQuickLogin('SRE_OPERATOR')}
-              className="p-2.5 text-left rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/60 transition-all flex flex-col"
+              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex flex-col"
             >
               <span className="font-semibold text-xs text-emerald-400">🟢 SRE Operator</span>
               <span className="text-[10px] text-slate-400">Rules & Approve</span>
@@ -175,7 +175,7 @@ export function LoginLanding() {
             <button
               type="button"
               onClick={() => handleQuickLogin('INCIDENT_COMMANDER')}
-              className="p-2.5 text-left rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/60 transition-all flex flex-col"
+              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex flex-col"
             >
               <span className="font-semibold text-xs text-rose-400">🔴 Commander</span>
               <span className="text-[10px] text-slate-400">Remediation & Chaos</span>
@@ -183,7 +183,7 @@ export function LoginLanding() {
             <button
               type="button"
               onClick={() => handleQuickLogin('SECURITY_ADMIN')}
-              className="p-2.5 text-left rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-800/60 transition-all flex flex-col"
+              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex flex-col"
             >
               <span className="font-semibold text-xs text-purple-400">🟣 Security Admin</span>
               <span className="text-[10px] text-slate-400">Telemetry & Admin</span>
