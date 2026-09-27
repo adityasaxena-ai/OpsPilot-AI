@@ -90,7 +90,7 @@ export function LoginLanding() {
       )}
 
       {/* ── Glassmorphism Login Card ── */}
-      <div className="relative z-20 w-full max-w-md mx-4 rounded-2xl border border-white/20 bg-white/[0.06] backdrop-blur-2xl p-6 md:p-8 shadow-2xl text-slate-100 space-y-6">
+      <div className="relative z-20 w-full max-w-sm mx-4 rounded-2xl border border-white/20 bg-white/[0.06] backdrop-blur-2xl p-6 md:p-7 shadow-2xl text-slate-100 space-y-6">
         {/* Branding Header */}
         <div className="flex items-center gap-3 pb-4 border-b border-white/10">
           <div className="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-300/40 flex items-center justify-center shadow-md">
