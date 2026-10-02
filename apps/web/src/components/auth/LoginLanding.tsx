@@ -89,10 +89,10 @@ export function LoginLanding() {
         </div>
       )}
 
-      {/* ── Glassmorphism Login Card ── */}
-      <div className="relative z-20 w-full max-w-sm mx-4 rounded-2xl border border-white/20 bg-white/[0.06] backdrop-blur-2xl p-6 md:p-7 shadow-2xl text-slate-100 space-y-6">
-        {/* Branding Header */}
-        <div className="flex items-center gap-3 pb-4 border-b border-white/10">
+      {/* ── Glassmorphism Login Card (two-column layout) ── */}
+      <div className="relative z-20 w-full max-w-xl mx-4 rounded-2xl border border-white/20 bg-white/[0.06] backdrop-blur-2xl p-6 md:p-7 shadow-2xl text-slate-100 flex flex-col gap-5">
+        {/* Branding Header — centered across full card width */}
+        <div className="flex flex-col items-center gap-2 pb-4 border-b border-white/10 text-center flex-shrink-0">
           <div className="w-11 h-11 rounded-xl bg-blue-500/20 border border-blue-300/40 flex items-center justify-center shadow-md">
             <Shield className="w-6 h-6 text-white" />
           </div>
@@ -110,56 +110,62 @@ export function LoginLanding() {
           </div>
         )}
 
-        {/* Credentials Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Username</label>
-            <div className="relative">
-              <User className="absolute left-3.5 top-2.5 size-4 text-slate-400" />
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
-                className="w-full pl-10 pr-3 py-2 rounded-xl text-xs bg-white/5 border border-white/15 text-white placeholder-slate-400 outline-none focus:border-blue-400/70 focus:ring-1 focus:ring-blue-400/60 transition-all"
-              />
+        {/* Body: two columns, vertically centered as groups */}
+        <div className="flex flex-col sm:flex-row gap-6 sm:gap-7 items-stretch">
+          {/* Left column: credentials form */}
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-center gap-4 min-w-0">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Username</label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-2.5 size-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter username"
+                  className="w-full pl-10 pr-3 py-2 rounded-xl text-xs bg-white/5 border border-white/15 text-white placeholder-slate-400 outline-none focus:border-blue-400/70 focus:ring-1 focus:ring-blue-400/60 transition-all"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
-            <div className="relative">
-              <Key className="absolute left-3.5 top-2.5 size-4 text-slate-400" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                className="w-full pl-10 pr-3 py-2 rounded-xl text-xs bg-white/5 border border-white/15 text-white placeholder-slate-400 outline-none focus:border-blue-400/70 focus:ring-1 focus:ring-blue-400/60 transition-all"
-              />
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+              <div className="relative">
+                <Key className="absolute left-3.5 top-2.5 size-4 text-slate-400" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  className="w-full pl-10 pr-3 py-2 rounded-xl text-xs bg-white/5 border border-white/15 text-white placeholder-slate-400 outline-none focus:border-blue-400/70 focus:ring-1 focus:ring-blue-400/60 transition-all"
+                />
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={isLoggingIn}
-            className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-blue-500/80 hover:bg-blue-500 border border-blue-300/40 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <LogIn size={15} />
-            {isLoggingIn ? 'Authenticating...' : 'Sign In'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-blue-500/80 hover:bg-blue-500 border border-blue-300/40 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              <LogIn size={15} />
+              {isLoggingIn ? 'Authenticating...' : 'Sign In'}
+            </button>
+          </form>
 
-        {/* Quick Demo Login Role Buttons */}
-        <div className="pt-4 border-t border-white/10 space-y-2.5">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-300/70">
-            Quick Demo Login (Seeded RBAC Roles)
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+          {/* Divider */}
+          <div className="hidden sm:block w-px bg-white/10 flex-shrink-0 self-stretch" />
+
+          {/* Right column: Quick Demo Login roles */}
+          <div className="flex-1 flex flex-col justify-center gap-2 min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-300/70 text-center leading-snug">
+              Quick Demo Login
+              <br />
+              (Seeded RBAC Roles)
+            </div>
             <button
               type="button"
               onClick={() => handleQuickLogin('VIEWER')}
-              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex flex-col"
+              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-between"
             >
               <span className="font-semibold text-xs text-blue-400">🔵 Viewer</span>
               <span className="text-[10px] text-slate-400">Read-Only</span>
@@ -167,7 +173,7 @@ export function LoginLanding() {
             <button
               type="button"
               onClick={() => handleQuickLogin('SRE_OPERATOR')}
-              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex flex-col"
+              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-between"
             >
               <span className="font-semibold text-xs text-emerald-400">🟢 SRE Operator</span>
               <span className="text-[10px] text-slate-400">Rules & Approve</span>
@@ -175,7 +181,7 @@ export function LoginLanding() {
             <button
               type="button"
               onClick={() => handleQuickLogin('INCIDENT_COMMANDER')}
-              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex flex-col"
+              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-between"
             >
               <span className="font-semibold text-xs text-rose-400">🔴 Commander</span>
               <span className="text-[10px] text-slate-400">Remediation & Chaos</span>
@@ -183,7 +189,7 @@ export function LoginLanding() {
             <button
               type="button"
               onClick={() => handleQuickLogin('SECURITY_ADMIN')}
-              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex flex-col"
+              className="p-2.5 text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all flex items-center justify-between"
             >
               <span className="font-semibold text-xs text-purple-400">🟣 Security Admin</span>
               <span className="text-[10px] text-slate-400">Telemetry & Admin</span>
