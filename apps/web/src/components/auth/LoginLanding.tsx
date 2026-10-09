@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth, Role } from '@/context/AuthContext';
 import { Shield, Key, User, LogIn, Lock, Activity, Volume2 } from 'lucide-react';
 
-const LOOP_FADE_SECONDS = 1.5; // how long the fade-out/fade-in ramp lasts at the loop point
+const LOOP_FADE_SECONDS = 2.5; // how long the fade-out/fade-in ramp lasts at the loop point
 
 export function LoginLanding() {
   const { login, isLoggingIn, loginError, switchRole } = useAuth();
@@ -15,14 +15,34 @@ export function LoginLanding() {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleTimeUpdate = () => {
+    let rafId: number | null = null;
+
+    const applyVolume = () => {
       if (!video.duration || !isFinite(video.duration)) return;
-      const fadeIn = Math.min(video.currentTime / LOOP_FADE_SECONDS, 1);
-      const fadeOut = Math.min((video.duration - video.currentTime) / LOOP_FADE_SECONDS, 1);
-      video.volume = Math.max(0, Math.min(fadeIn, fadeOut, 1));
+      const cur = video.currentTime;
+      const dur = video.duration;
+
+      const fadeInRaw = Math.min(cur / LOOP_FADE_SECONDS, 1);
+      const fadeOutRaw = Math.min((dur - cur) / LOOP_FADE_SECONDS, 1);
+      const raw = Math.max(0, Math.min(fadeInRaw, fadeOutRaw, 1));
+
+      // Smoothstep easing for perceptually linear volume ramp
+      video.volume = raw * raw * (3 - 2 * raw);
+    };
+
+    const loop = () => {
+      applyVolume();
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+
+    const handleTimeUpdate = () => {
+      applyVolume();
     };
 
     const handleEnded = () => {
+      video.volume = 0;
       video.currentTime = 0;
       video.play().catch(() => {});
     };
@@ -30,6 +50,7 @@ export function LoginLanding() {
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('ended', handleEnded);
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('ended', handleEnded);
     };
