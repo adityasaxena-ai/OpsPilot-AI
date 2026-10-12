@@ -11,13 +11,13 @@
 | **Phase 1** | CI/CD Pipeline Implementation | `[x]` | PR #1 fail→pass proof; Note: `TURBO_FORCE=true` workaround, root cause unconfirmed. |
 | **Phase 2** | Infrastructure as Code (IaC) | `[x]` | Full-stack Docker Compose verified; Note: container startup seed wipes data. |
 | **Security Retrofit** | Security Shift-Left Retrofit | `[x]` | PR #2 merged 2026-08-30 + #3 (JWT/Argon2id), #4 (fail-closed R-17), #5 (ai.routes.ts authz), #6 (audit zero high/critical), #7 (gitleaks hard-fail). |
-| **Phase 3** | Documentation baseline (OpenAPI, architecture diagram, README) | `[x]` | All 3 verified from repository files:<br>• OpenAPI spec: [`./openapi.json`](file:///Users/pankaja/AI%20Projects/OpsAI/openapi.json) (served at `/documentation` via `@fastify/swagger-ui` in [`apps/api/src/app.ts`](file:///Users/pankaja/AI%20Projects/OpsAI/apps/api/src/app.ts#L119-L125))<br>• Architecture diagram: Mermaid diagram embedded in [`README.md`](file:///Users/pankaja/AI%20Projects/OpsAI/README.md#L60-L105)<br>• README Render section: Cloud deployment section in [`README.md`](file:///Users/pankaja/AI%20Projects/OpsAI/README.md#L134-L142) |
-| **Phase 4** | Python service — foundation + Drift | `[ ]` | Not started. |
+| **Phase 3** | Documentation baseline (OpenAPI, architecture diagram, README) | `[x]` | All 3 verified from repository files:<br>• OpenAPI spec: [`openapi.json`](./openapi.json) (served at `/documentation` via `@fastify/swagger-ui` in [`apps/api/src/app.ts#L119`](./apps/api/src/app.ts#L119))<br>• Architecture diagram: Mermaid diagram embedded in [`README.md#L60`](./README.md#L60)<br>• README Render section: Cloud deployment section in [`README.md#L138`](./README.md#L138) |
+| **Phase 4** | Python service — foundation + Drift | `[ ]` | Not started. Threat model must settle RBAC + auto-link logic — see Decisions log 2026-10-12. |
 | **Phase 5** | Python service — forecasting, embeddings, FAISS, Fairlearn | `[ ]` | Not started. |
 | **Phase 6** | AI Governance standard (top-3 evidence-backed options, human confirmation) | `[ ]` | Not started. |
 | **Phase 7** | Governance framework mapping (ISO 42001 / NIST AI RMF / EU AI Act) | `[ ]` | Not started. |
 | **Phase 8** | Security & data policy | `[ ]` | Not started. |
-| **Phase 9** | One polished frontend module (Governance) | `[ ]` | Not started. |
+| **Phase 9** | One polished frontend module (Governance) | `[ ]` | Not started. Scope fixed — see Decisions log 2026-10-12. |
 | **Phase 10** | Cloud deployment | `[~]` | **DEVIATION:** Prod live on Render ahead of sign-off (Railway trial expired → contingency executed).<br>• Frontend Web: [`https://opspilot-web-wf6g.onrender.com`](https://opspilot-web-wf6g.onrender.com)<br>• Backend API: [`https://opspilot-ai-0seb.onrender.com`](https://opspilot-ai-0seb.onrender.com) |
 
 ---
@@ -91,6 +91,21 @@ Every pull request merged into `main` since the initial CI/CD pipeline setup (PR
     2. Propose the exact fix (literal command or diff).
     3. Wait for explicit user approval.
     4. Only then execute.
+
+---
+
+## Decisions log
+
+### 2026-10-12
+1. AI incident ↔ ops incident link is BIDIRECTIONAL (approved). Existing schema supports it with no migration:
+   AiIncident.relatedIncidentId → Incident (onDelete: SetNull); Incident.aiIncidents AiIncident[].
+   Gaps: (a) drift auto-escalation never sets relatedIncidentId; it is only set manually via POST in ai-incidents.routes.ts.
+         (b) the incidents API and IncidentDetail.tsx do not expose linked AI incidents.
+2. Auto-link rule: exactly 1 open ops incident on the asset's serviceId → auto-link plus a timeline entry;
+   more than 1 → suggested links for human confirmation; the same rule applies in reverse when an ops incident opens.
+3. RBAC (PROPOSED, to be confirmed in the Phase 4 threat model): the link is visible to all roles; AI incident detail is role-gated.
+4. UI sequencing: a thin read-only AI Incidents list/detail plus a "Linked AI incidents" panel on IncidentDetail, immediately after Phase 4.
+   Phase 9 scope: AI Governance section with sub-tabs AI Incidents | Drift Monitors | Model Register (Governed Assets) | Approvals.
 
 ---
 
@@ -308,5 +323,5 @@ endpoints:
 
 #### Verification
 - CI runs verified clean across all steps.
-- Live auth/rate-limit probes: raw terminal output saved at [`security/live_probes_verification.log`](file:///Users/pankaja/AI%20Projects/OpsAI/security/live_probes_verification.log).
+- Live auth/rate-limit probes: raw terminal output saved at [`security/live_probes_verification.log`](./security/live_probes_verification.log).
 - Auth gap on `ai.routes.ts` resolved in PR #5 (`feat(authz): authorization guards on ai.routes.ts`).
