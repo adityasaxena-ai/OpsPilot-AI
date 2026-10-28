@@ -17,7 +17,10 @@ import { Settings } from './pages/Settings';
 import { RulesManager } from './pages/RulesManager';
 import { NotFound } from './pages/NotFound';
 import { AuthProvider } from './context/AuthContext';
+import { initAnalytics } from './lib/analytics';
 import './index.css';
+
+initAnalytics();
 
 const queryClient = new QueryClient({
   defaultOptions: {
