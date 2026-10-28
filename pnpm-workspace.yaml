@@ -36,3 +36,5 @@ overrides:
 auditConfig:
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
+    # zod 3.25.x; fix requires zod 4 (major). Request bodies capped by Fastify default 1 MiB bodyLimit. EXPIRES 2026-11-26 — remove after zod 4 PR.
+    - GHSA-mrhx-c7xc-m3w5
