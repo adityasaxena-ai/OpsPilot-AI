@@ -23,11 +23,11 @@ overrides:
   "@fastify/static": "^10.1.2"
   nanoid: "^3.3.18"
   cross-spawn: "^7.0.6"
-  vite: "^6.4.3"
+  vite: "^6.4.4"
   vitest: "^3.2.6"
   express: "^4.21.2"
   tinypool: ">=2.1.2"
-  fastify: ">=5.12.2"
+  fastify: "^5.12.6"
   source-map-js: ">=1.2.2"
   "brace-expansion@<2": ">=1.1.20 <2"
   "brace-expansion@>=2 <3": ">=2.1.6 <3"
@@ -36,3 +36,5 @@ overrides:
 auditConfig:
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
+    # zod 3.25.x; fix requires zod 4 (major). Request bodies capped by Fastify default 1 MiB bodyLimit. EXPIRES 2026-11-26 — remove after zod 4 PR.
+    - GHSA-mrhx-c7xc-m3w5
