@@ -154,6 +154,15 @@ Report any security concerns by opening an issue on [GitHub Issues](https://gith
 
 ---
 
+## 📊 Analytics & Privacy
+
+OpsPilot AI uses privacy-friendly [Umami Cloud](https://umami.is) analytics on the public web UI:
+- **Cookie-free, privacy-oriented**: no cookies or cross-site tracking; Umami derives approximate visitor location — OpsPilot stores no IP addresses.
+- **Data minimisation**: Custom events carry only high-level attributes (`role` and `outcome`, e.g. login success/failure). No usernames, emails, IP addresses, or free text are ever collected or transmitted.
+- **Opt-in configuration**: Analytics is enabled only when `VITE_UMAMI_WEBSITE_ID` is populated at build time. When empty (the default for local development and self-hosted environments), no analytics script is loaded.
+
+---
+
 ## 💻 Local Quick Start
 
 ### Prerequisites

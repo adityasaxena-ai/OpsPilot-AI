@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth, DEMO_CREDENTIALS, Role } from '@/context/AuthContext';
+import { trackEvent } from '@/lib/analytics';
 import { Shield, Key, User, LogIn, Lock, CheckCircle2 } from 'lucide-react';
 
 export function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose?: () => void }) {
-  const { login, isLoggingIn, loginError, isAuthenticated, user, logout } = useAuth();
+  const { login, isLoggingIn, loginError, isAuthenticated, user, logout, switchRole } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -11,8 +12,12 @@ export function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose?: () 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(username, password);
-    if (success && onClose) {
+    const loggedInUser = await login(username, password);
+    trackEvent('form_login', {
+      outcome: loggedInUser ? 'success' : 'failure',
+      role: loggedInUser?.roles[0] || 'unknown',
+    });
+    if (loggedInUser && onClose) {
       onClose();
     }
   };
@@ -22,7 +27,7 @@ export function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose?: () 
     if (creds) {
       setUsername(creds.username);
       setPassword(creds.password);
-      const success = await login(creds.username, creds.password);
+      const success = await switchRole(role);
       if (success && onClose) {
         onClose();
       }

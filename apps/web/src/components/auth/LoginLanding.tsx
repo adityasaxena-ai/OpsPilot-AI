@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth, Role } from '@/context/AuthContext';
+import { trackEvent } from '@/lib/analytics';
 import { Shield, Key, User, LogIn, Lock, Activity, Volume2 } from 'lucide-react';
 
 const LOOP_FADE_SECONDS = 2.5; // how long the fade-out/fade-in ramp lasts at the loop point
@@ -68,7 +69,11 @@ export function LoginLanding() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(username, password);
+    const loggedInUser = await login(username, password);
+    trackEvent('form_login', {
+      outcome: loggedInUser ? 'success' : 'failure',
+      role: loggedInUser?.roles[0] || 'unknown',
+    });
   };
 
   const handleQuickLogin = async (role: Role) => {

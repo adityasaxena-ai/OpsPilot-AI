@@ -96,6 +96,10 @@ Every pull request merged into `main` since the initial CI/CD pipeline setup (PR
 
 ## Decisions log
 
+### 2026-10-28
+1. (a) Public demo logins accepted for now — JWT rotated, orphan API suspended, no AI keys in prod; revisit with safe public demo mode.
+2. (b) Umami analytics added with data minimisation (role + outcome only).
+
 ### 2026-10-12
 1. AI incident ↔ ops incident link is BIDIRECTIONAL (approved). Existing schema supports it with no migration:
    AiIncident.relatedIncidentId → Incident (onDelete: SetNull); Incident.aiIncidents AiIncident[].

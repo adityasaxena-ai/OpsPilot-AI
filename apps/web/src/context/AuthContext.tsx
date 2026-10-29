@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api, setAuthToken, setOnUnauthorized } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics';
 
 export type Role = 'VIEWER' | 'SRE_OPERATOR' | 'INCIDENT_COMMANDER' | 'SECURITY_ADMIN';
 export type Permission =
@@ -125,10 +126,10 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loginError: string | null;
   isLoggingIn: boolean;
-  login: (username?: string, password?: string) => Promise<boolean>;
+  login: (username?: string, password?: string) => Promise<UserPrincipal | null>;
   logout: () => void;
   hasPermission: (permission: Permission) => boolean;
-  switchRole: (role: Role) => Promise<void>;
+  switchRole: (role: Role) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -137,10 +138,10 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   loginError: null,
   isLoggingIn: false,
-  login: async () => false,
+  login: async () => null,
   logout: () => {},
   hasPermission: () => false,
-  switchRole: async () => {},
+  switchRole: async () => false,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -162,10 +163,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  const login = async (username?: string, password?: string): Promise<boolean> => {
+  const login = async (username?: string, password?: string): Promise<UserPrincipal | null> => {
     if (!username || !password) {
       setLoginError('Username and password are required');
-      return false;
+      return null;
     }
 
     setIsLoggingIn(true);
@@ -188,24 +189,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(principal);
         setAuthToken(newToken);
         setIsLoggingIn(false);
-        return true;
+        return principal;
       } else {
         setLoginError('Authentication failed');
         setIsLoggingIn(false);
-        return false;
+        return null;
       }
     } catch (err: any) {
       setLoginError(err.message || 'Invalid username or password');
       setIsLoggingIn(false);
-      return false;
+      return null;
     }
   };
 
-  const switchRole = async (role: Role) => {
+  const switchRole = async (role: Role): Promise<boolean> => {
     const creds = DEMO_CREDENTIALS[role];
     if (creds) {
-      await login(creds.username, creds.password);
+      const principal = await login(creds.username, creds.password);
+      const outcome = principal ? 'success' : 'failure';
+      trackEvent('demo_login', { role, outcome });
+      return Boolean(principal);
     }
+    trackEvent('demo_login', { role, outcome: 'failure' });
+    return false;
   };
 
   const hasPermission = (permission: Permission): boolean => {
