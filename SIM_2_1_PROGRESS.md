@@ -12,13 +12,22 @@
 | **Phase 2** | Infrastructure as Code (IaC) | `[x]` | Full-stack Docker Compose verified; Note: container startup seed wipes data. |
 | **Security Retrofit** | Security Shift-Left Retrofit | `[x]` | PR #2 merged 2026-08-30 + #3 (JWT/Argon2id), #4 (fail-closed R-17), #5 (ai.routes.ts authz), #6 (audit zero high/critical), #7 (gitleaks hard-fail). |
 | **Phase 3** | Documentation baseline (OpenAPI, architecture diagram, README) | `[x]` | All 3 verified from repository files:<br>• OpenAPI spec: [`openapi.json`](./openapi.json) (served at `/documentation` via `@fastify/swagger-ui` in [`apps/api/src/app.ts#L119`](./apps/api/src/app.ts#L119))<br>• Architecture diagram: Mermaid diagram embedded in [`README.md#L60`](./README.md#L60)<br>• README Render section: Cloud deployment section in [`README.md#L138`](./README.md#L138) |
-| **Phase 4** | Python service — foundation + Drift | `[ ]` | Not started. Threat model must settle RBAC + auto-link logic — see Decisions log 2026-10-12. |
+| **Phase 4** | Python service — foundation + Drift | `[~]` | Threat model approved 2026-11-01 — see Active Phase section. RBAC + auto-link logic addressed in T10/T11 (Decisions log 2026-10-12). |
 | **Phase 5** | Python service — forecasting, embeddings, FAISS, Fairlearn | `[ ]` | Not started. |
 | **Phase 6** | AI Governance standard (top-3 evidence-backed options, human confirmation) | `[ ]` | Not started. |
 | **Phase 7** | Governance framework mapping (ISO 42001 / NIST AI RMF / EU AI Act) | `[ ]` | Not started. |
 | **Phase 8** | Security & data policy | `[ ]` | Not started. |
 | **Phase 9** | One polished frontend module (Governance) | `[ ]` | Not started. Scope fixed — see Decisions log 2026-10-12. |
 | **Phase 10** | Cloud deployment | `[~]` | **DEVIATION:** Prod live on Render ahead of sign-off (Railway trial expired → contingency executed).<br>• Frontend Web: [`https://opspilot-web-wf6g.onrender.com`](https://opspilot-web-wf6g.onrender.com)<br>• Backend API: [`https://opspilot-ai-0seb.onrender.com`](https://opspilot-ai-0seb.onrender.com) |
+
+## 🔵 Active Phase: Phase 4 — Python ML Service (Foundation + Drift)
+Threat model: docs/threat-models/PHASE4_PYTHON_SERVICE.md
+- [x] Threat model reviewed & approved
+- [ ] D3 gated migrate-prod workflow implemented (must precede any Phase 4 migration reaching prod)
+- [ ] Python service scaffold (FastAPI, docker-compose, no published port, no DB creds)
+- [ ] Node→Python HMAC signing (T1/T2)
+- [ ] Drift endpoint via Evidently + PSI parity test (T4/T7/T12)
+- [ ] Carried-over: VIEWER AI_INVESTIGATE + RBAC map dedupe; AI route rate limits; login AuditLog
 
 ---
 
@@ -95,6 +104,16 @@ Every pull request merged into `main` since the initial CI/CD pipeline setup (PR
 ---
 
 ## Decisions log
+
+### 2026-11-01
+1. Prod↔local drift audit complete (B1–B6). Prod schema in sync; deploy pipeline has no migration step.
+   - B1 all live code on main — done 2026-10-28
+   - B2 done 2026-10-28
+   - B3 VITE_* build vars reconciled — done 2026-10-28
+   - B4 deploy runs no migrations (Dockerfile CMD = node only; Render Pre-Deploy locked on free tier) — to be fixed by D3 (not yet implemented)
+   - B5 Neon `_prisma_migrations` 11/11 rows, checksums identical to local, none rolled back; prod = local at 2580618d282ccc674e07b75ff9f78dd239120abd
+   - B6 orphan API service (rin2) suspended — delete pending
+2. Phase 4 decisions D1–D3 recorded in docs/threat-models/PHASE4_PYTHON_SERVICE.md.
 
 ### 2026-10-28
 1. (a) Public demo logins accepted for now — JWT rotated, orphan API suspended, no AI keys in prod; revisit with safe public demo mode.
