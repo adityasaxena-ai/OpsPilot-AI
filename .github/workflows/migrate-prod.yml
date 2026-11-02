@@ -23,6 +23,10 @@ jobs:
       DIRECT_URL: ${{ secrets.DIRECT_URL }}
     steps:
       - uses: actions/checkout@v4
+      - name: Mask database host in logs
+        run: |
+          HOST=$(node -e 'console.log(new URL(process.env.DIRECT_URL).hostname)')
+          echo "::add-mask::$HOST"
       - uses: pnpm/action-setup@v4
         with:
           version: '11.20.0'
