@@ -14,7 +14,6 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "db:push": "prisma db push --schema=prisma/schema.prisma",
     "db:migrate": "prisma migrate deploy --schema=prisma/schema.prisma",
     "db:seed": "tsx scripts/seed.ts",
     "seed": "tsx scripts/seed.ts",

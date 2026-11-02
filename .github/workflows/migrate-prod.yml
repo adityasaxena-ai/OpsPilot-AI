@@ -1,0 +1,41 @@
+name: migrate-prod
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "status = read-only check; deploy = apply pending migrations"
+        type: choice
+        options: [status, deploy]
+        default: status
+permissions:
+  contents: read
+concurrency:
+  group: migrate-prod
+  cancel-in-progress: false
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DIRECT_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.20.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Migration status
+        # status exits 1 when migrations are pending; informational in deploy mode
+        continue-on-error: ${{ inputs.mode == 'deploy' }}
+        run: pnpm exec prisma migrate status --schema=prisma/schema.prisma
+      - name: Migrate deploy
+        if: inputs.mode == 'deploy'
+        run: pnpm exec prisma migrate deploy --schema=prisma/schema.prisma
