@@ -12,21 +12,24 @@
 | **Phase 2** | Infrastructure as Code (IaC) | `[x]` | Full-stack Docker Compose verified; Note: container startup seed wipes data. |
 | **Security Retrofit** | Security Shift-Left Retrofit | `[x]` | PR #2 merged 2026-08-30 + #3 (JWT/Argon2id), #4 (fail-closed R-17), #5 (ai.routes.ts authz), #6 (audit zero high/critical), #7 (gitleaks hard-fail). |
 | **Phase 3** | Documentation baseline (OpenAPI, architecture diagram, README) | `[x]` | All 3 verified from repository files:<br>• OpenAPI spec: [`openapi.json`](./openapi.json) (served at `/documentation` via `@fastify/swagger-ui` in [`apps/api/src/app.ts#L119`](./apps/api/src/app.ts#L119))<br>• Architecture diagram: Mermaid diagram embedded in [`README.md#L60`](./README.md#L60)<br>• README Render section: Cloud deployment section in [`README.md#L138`](./README.md#L138) |
-| **Phase 4** | Python service — foundation + Drift | `[~]` | Threat model approved 2026-11-01 — see Active Phase section. RBAC + auto-link logic addressed in T10/T11 (Decisions log 2026-10-12). |
-| **Phase 5** | Python service — forecasting, embeddings, FAISS, Fairlearn | `[ ]` | Not started. |
+| **Phase 4** | LLMOps foundation (re-scoped 2026-11-03; was Python ML + Drift) | `[~]` | D3 complete 2026-11-05. LLMOps threat model next. See Active Phase. |
+| **Phase 5** | RAG quality — real embeddings + vector search (re-scoped 2026-11-03) | `[ ]` | pgvector preferred over FAISS. Forecasting/Fairlearn deferred. |
 | **Phase 6** | AI Governance standard (top-3 evidence-backed options, human confirmation) | `[ ]` | Not started. |
 | **Phase 7** | Governance framework mapping (ISO 42001 / NIST AI RMF / EU AI Act) | `[ ]` | Not started. |
 | **Phase 8** | Security & data policy | `[ ]` | Not started. |
 | **Phase 9** | One polished frontend module (Governance) | `[ ]` | Not started. Scope fixed — see Decisions log 2026-10-12. |
 | **Phase 10** | Cloud deployment | `[~]` | **DEVIATION:** Prod live on Render ahead of sign-off (Railway trial expired → contingency executed).<br>• Frontend Web: [`https://opspilot-web-wf6g.onrender.com`](https://opspilot-web-wf6g.onrender.com)<br>• Backend API: [`https://opspilot-ai-0seb.onrender.com`](https://opspilot-ai-0seb.onrender.com) |
 
-## 🔵 Active Phase: Phase 4 — Python ML Service (Foundation + Drift)
-Threat model: docs/threat-models/PHASE4_PYTHON_SERVICE.md
-- [x] Threat model reviewed & approved
-- [ ] D3 gated migrate-prod workflow implemented (must precede any Phase 4 migration reaching prod)
-- [ ] Python service scaffold (FastAPI, docker-compose, no published port, no DB creds)
-- [ ] Node→Python HMAC signing (T1/T2)
-- [ ] Drift endpoint via Evidently + PSI parity test (T4/T7/T12)
+## 🔵 Active Phase: Phase 4 — LLMOps Foundation
+- [x] v1 threat model (Python ML service) — approved 2026-11-01, SUPERSEDED 2026-11-03 (D3, T10/T11, carried-over findings retained)
+- [x] D3 gated migrate-prod workflow — PR #32 (b5dd5d7); evidence 2026-11-05: run #1 status (approved; 11 migrations, up to date; host masked), run #3 deploy (approved; "No pending migrations to apply."), run #4 from feat branch (skipped, no approval). Run #2 = accidental status-mode run, harmless.
+- [ ] LLMOps threat model (STRIDE + OWASP LLM Top 10) reviewed & approved
+- [ ] Gemini provider live: pinned model version, daily token budget, route rate limits, no interval calls (A.6)
+- [ ] LLM call tracing: model, prompt version, tokens, latency, cost, outcome
+- [ ] Prompt registry (versioned; every AI output traceable to prompt+model)
+- [ ] Eval harness: golden incident set; groundedness, top-3 rule, abstention scoring; runs on prompt/model change
+- [ ] Guardrails: output schema validation, PII redaction pre-provider, incident text/logs treated as untrusted input
+- [ ] AI↔ops incident linking (T10/T11 carried forward)
 - [ ] Carried-over: VIEWER AI_INVESTIGATE + RBAC map dedupe; AI route rate limits; login AuditLog
 
 ---
@@ -114,6 +117,22 @@ Every pull request merged into `main` since the initial CI/CD pipeline setup (PR
    - B5 Neon `_prisma_migrations` 11/11 rows, checksums identical to local, none rolled back; prod = local at 2580618d282ccc674e07b75ff9f78dd239120abd
    - B6 orphan API service (rin2) suspended — delete pending
 2. Phase 4 decisions D1–D3 recorded in docs/threat-models/PHASE4_PYTHON_SERVICE.md.
+
+### 2026-11-03
+1. D4 Scope: MLOps/model-drift removed; Phase 4 re-scoped to LLMOps. Rationale is prioritisation — all live AI features are LLM-based; simulated drift was feasible but competes for limited capacity and is less relevant to target roles. Not a feasibility claim.
+2. D5 Provider: Gemini free tier, pinned model version, daily token budget, rate-limited. No LLMOps work is validated against MockProvider. Free-tier prompts may be used by the provider → only simulated data ever reaches it (to be a threat-model control).
+3. D6 Python service dropped from plan; D1/D2 superseded. Reintroduce only with a documented concrete need.
+4. D7 Sim 2.0 TS drift module retained dormant behind its ENABLE_* flag; not deleted.
+5. D8 Phase 5 re-scoped to real embeddings + vector search (pgvector preferred); forecasting and Fairlearn deferred.
+6. D9 docs/threat-models/PHASE4_PYTHON_SERVICE.md marked SUPERSEDED; D3, T10/T11 and carried-over findings carry into the LLMOps threat model.
+7. D10 Sequence: D3 evidence → LLMOps threat model → build.
+
+### 2026-11-05
+1. D3 implemented and proven (PR #32, main@b5dd5d7). Run IDs: #1 41429382059, #3 42042607159, #4 42048157965. Gate: required reviewer, admin bypass off, deployment branch main only, env secret DIRECT_URL (Neon direct endpoint). DIRECT_URL also set on Render API. Neon host masked in public logs (::add-mask::).
+2. Dispatch is via GitHub UI by design: local fine-grained PAT has no Actions permission (least privilege).
+3. Umami city-level location is IP/carrier-gateway based and unreliable in India — report at country/state level; known limitation, not a defect.
+4. B6 closed: Render shows 2 services, 0 suspended — orphan rin2 no longer exists.
+5. Reconciliation backlog additions: compose SIMULATOR_TICK_INTERVAL_MS 15000→0; bump actions/checkout, setup-node, pnpm/action-setup to current majors (Node 20 deprecation) in ci.yml + migrate-prod.yml; pin runs-on ubuntu-24.04 for migrate-prod; PRISMA_HIDE_UPDATE_MESSAGE=1 (do NOT upgrade Prisma to v7+ casually — config moves to prisma.config.ts); Umami exclude-own-visits + document city limitation; Neon idle check → decide connection_limit + autoscaling 0.25↔2 CU; delete Railway-era GitHub environment "graceful-upliftment / production"; delete branch feat/d3-migrate-prod.
 
 ### 2026-10-28
 1. (a) Public demo logins accepted for now — JWT rotated, orphan API suspended, no AI keys in prod; revisit with safe public demo mode.
