@@ -12,7 +12,7 @@
 | **Phase 2** | Infrastructure as Code (IaC) | `[x]` | Full-stack Docker Compose verified; Note: container startup seed wipes data. |
 | **Security Retrofit** | Security Shift-Left Retrofit | `[x]` | PR #2 merged 2026-08-30 + #3 (JWT/Argon2id), #4 (fail-closed R-17), #5 (ai.routes.ts authz), #6 (audit zero high/critical), #7 (gitleaks hard-fail). |
 | **Phase 3** | Documentation baseline (OpenAPI, architecture diagram, README) | `[x]` | All 3 verified from repository files:<br>• OpenAPI spec: [`openapi.json`](./openapi.json) (served at `/documentation` via `@fastify/swagger-ui` in [`apps/api/src/app.ts#L119`](./apps/api/src/app.ts#L119))<br>• Architecture diagram: Mermaid diagram embedded in [`README.md#L60`](./README.md#L60)<br>• README Render section: Cloud deployment section in [`README.md#L138`](./README.md#L138) |
-| **Phase 4** | LLMOps foundation (re-scoped 2026-11-03; was Python ML + Drift) | `[~]` | D3 complete 2026-11-05. LLMOps threat model next. See Active Phase. |
+| **Phase 4** | LLMOps foundation (re-scoped 2026-11-03; was Python ML + Drift) | `[~]` | D3 complete 2026-11-05. LLMOps threat model approved 2026-11-11. Next: build step 0 (L20). See Active Phase. |
 | **Phase 5** | RAG quality — real embeddings + vector search (re-scoped 2026-11-03) | `[ ]` | pgvector preferred over FAISS. Forecasting/Fairlearn deferred. |
 | **Phase 6** | AI Governance standard (top-3 evidence-backed options, human confirmation) | `[ ]` | Not started. |
 | **Phase 7** | Governance framework mapping (ISO 42001 / NIST AI RMF / EU AI Act) | `[ ]` | Not started. |
@@ -23,7 +23,8 @@
 ## 🔵 Active Phase: Phase 4 — LLMOps Foundation
 - [x] v1 threat model (Python ML service) — approved 2026-11-01, SUPERSEDED 2026-11-03 (D3, T10/T11, carried-over findings retained)
 - [x] D3 gated migrate-prod workflow — PR #32 (b5dd5d7); evidence 2026-11-05: run #1 status (approved; 11 migrations, up to date; host masked), run #3 deploy (approved; "No pending migrations to apply."), run #4 from feat branch (skipped, no approval). Run #2 = accidental status-mode run, harmless.
-- [ ] LLMOps threat model (STRIDE + OWASP LLM Top 10) reviewed & approved
+- [x] LLMOps threat model (STRIDE + OWASP LLM Top 10) — approved 2026-11-11, docs/threat-models/PHASE4_LLMOPS.md (rev 6)
+- [ ] Pre-provider fixes: L23 approval/action mismatch (first), L21 UI fabricated AI values, L22 SSE CORS + auth, C1 remove VIEWER AI_INVESTIGATE
 - [ ] Gemini provider live: pinned model version, daily token budget, route rate limits, no interval calls (A.6)
 - [ ] LLM call tracing: model, prompt version, tokens, latency, cost, outcome
 - [ ] Prompt registry (versioned; every AI output traceable to prompt+model)
@@ -133,6 +134,10 @@ Every pull request merged into `main` since the initial CI/CD pipeline setup (PR
 3. Umami city-level location is IP/carrier-gateway based and unreliable in India — report at country/state level; known limitation, not a defect.
 4. B6 closed: Render shows 2 services, 0 suspended — orphan rin2 no longer exists.
 5. Reconciliation backlog additions: compose SIMULATOR_TICK_INTERVAL_MS 15000→0; bump actions/checkout, setup-node, pnpm/action-setup to current majors (Node 20 deprecation) in ci.yml + migrate-prod.yml; pin runs-on ubuntu-24.04 for migrate-prod; PRISMA_HIDE_UPDATE_MESSAGE=1 (do NOT upgrade Prisma to v7+ casually — config moves to prisma.config.ts); Umami exclude-own-visits + document city limitation; Neon idle check → decide connection_limit + autoscaling 0.25↔2 CU; delete Railway-era GitHub environment "graceful-upliftment / production"; delete branch feat/d3-migrate-prod.
+
+### 2026-11-11
+1. D11 — AI autonomy in Phase 4 = auto-create, human approves. AI may create RCA results, AI incidents, remediation proposals and link suggestions on its own; it never approves or executes anything. Owner confirmed all prod data is simulated. Gemini key must be created in a no-billing Google project (precondition for build step 4).
+2. Reconciliation backlog additions: telemetry emitter starts on every boot (apps/api/src/server.ts:7, 5 s interval) — breaks A.6; remove --passWithNoTests from packages that have tests; pin / migrate @google/generative-ai ^0.21.0 (caret range, legacy SDK).
 
 ### 2026-10-28
 1. (a) Public demo logins accepted for now — JWT rotated, orphan API suspended, no AI keys in prod; revisit with safe public demo mode.
