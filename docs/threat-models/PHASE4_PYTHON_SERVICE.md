@@ -1,5 +1,5 @@
 # Phase 4 Threat Model — Python ML Service (Foundation + Drift)
-Date: 2026-11-01 | Status: APPROVED 2026-11-01 | Method: STRIDE
+Date: 2026-11-01 | Status: APPROVED 2026-11-01, SUPERSEDED 2026-11-03 (see Decisions D4–D9) | Method: STRIDE
 
 ## Decisions
 - D1 Hosting: localhost-only via docker-compose now (Option C); designed as a future separate service (Phase 10). Sidecar rejected (512 MB shared RAM; ML OOM would kill API).
