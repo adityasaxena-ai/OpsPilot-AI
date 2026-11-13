@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { getConfig } from '@opspilot/config';
 import { globalOtelEmitter } from '@opspilot/telemetry';
+import { initAI } from '@opspilot/ai';
 import { buildApp } from './app.js';
 
 // Telemetry & Server initialization (OTEL_PROMETHEUS_URL)
@@ -21,6 +22,8 @@ if (isDbUrlPresent) {
 console.log('====================================');
 
 const config = getConfig();
+const ai = initAI();
+console.log(`[AI] generation=${ai.generation} embeddings=${ai.embeddings}`);
 
 const start = async () => {
   const app = await buildApp();

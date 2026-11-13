@@ -16,6 +16,13 @@ process.env['ENABLE_REMEDIATION_V2'] = 'true';
 process.env['ENABLE_PREDICTIVE_INTELLIGENCE'] = 'true';
 process.env['ENABLE_RAG'] = 'true';
 
+// Phase 4 L12/L20: tests opt in to MockProvider explicitly; real LLM calls are always off in tests
+process.env['AI_PROVIDER'] = 'mock';
+process.env['AI_ALLOW_MOCK'] = 'true';
+process.env['ENABLE_LLM_GENERATION'] = 'false';
+process.env['ENABLE_LLM_EMBEDDINGS'] = 'false';
+delete process.env['GEMINI_API_KEY'];
+
 export default defineConfig({
   test: {
     environment: 'node',

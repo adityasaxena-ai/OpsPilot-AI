@@ -13,15 +13,21 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
 
   // AI Provider
-  AI_PROVIDER: z.enum(['mock', 'gemini', 'upstage', 'openai', 'anthropic']).default('mock'),
-  AI_MODEL: z.string().default('gemini-3.6-flash'),
+  AI_PROVIDER: z.enum(['mock', 'gemini']).default('mock'),
+  AI_MODEL: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
   AI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.2),
   AI_MAX_TOKENS: z.coerce.number().int().default(4096),
-  GEMINI_API_KEY: z.string().optional(),
-  UPSTAGE_API_KEY: z.string().optional(),
-  UPSTAGE_MODEL: z.string().default('solar-mini'),
-  ANTHROPIC_API_KEY: z.string().optional(),
-  ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
+  GEMINI_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
+  // Phase 4 L20/L12: real LLM calls and mock are both off unless explicitly enabled
+  ENABLE_LLM_GENERATION: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  ENABLE_LLM_EMBEDDINGS: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
+  AI_ALLOW_MOCK: z
+    .preprocess((v) => v === 'true' || v === true, z.boolean())
+    .default(false),
 
   // Simulation
   SIMULATION_MODE: z

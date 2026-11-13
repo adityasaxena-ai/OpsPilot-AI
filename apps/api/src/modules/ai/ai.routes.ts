@@ -265,6 +265,7 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
       success: true,
       data: {
         reply: response.text,
+        provider: aiProvider.name,
         model: response.model,
         tokenUsage: response.tokenUsage,
       },

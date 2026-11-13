@@ -7,9 +7,10 @@ export class GeminiProvider implements AIProvider {
   private client: GoogleGenerativeAI;
   private defaultModel: string;
 
-  constructor(apiKey: string, defaultModel = 'gemini-2.0-flash') {
+  constructor(apiKey: string, model: string) {
+    if (!model) throw new Error('GeminiProvider requires an explicit model (AI_MODEL)');
     this.client = new GoogleGenerativeAI(apiKey);
-    this.defaultModel = defaultModel;
+    this.defaultModel = model;
   }
 
   async complete<T>(prompt: AIPrompt<T>): Promise<AIResponse<T>> {

@@ -163,6 +163,25 @@ export async function buildApp() {
     health: '/health',
   }));
 
+  // ── Global error handler ───────────────────────────────────────────────
+  app.setErrorHandler((error: any, _request, reply) => {
+    if (error?.code === 'AI_UNAVAILABLE') {
+      _request.log.warn({ reason: error.reason }, 'AI unavailable');
+      return reply.status(503).send({ success: false, error: { code: 'AI_UNAVAILABLE', message: 'AI unavailable' } });
+    }
+
+
+    app.log.error(error);
+    const statusCode = error.statusCode ?? 500;
+    void reply.status(statusCode).send({
+      success: false,
+      error: {
+        code: error.code ?? 'INTERNAL_ERROR',
+        message: statusCode === 500 ? 'Internal server error' : error.message,
+      },
+    });
+  });
+
   await app.register(healthRoutes, { prefix: '/health' });
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
   await app.register(eventsRoutes, { prefix: '/api/v1/events' });
@@ -199,22 +218,6 @@ export async function buildApp() {
 
   await app.register(predictionRoutes, { prefix: '/api/v1/predictions' });
   await app.register(knowledgeRoutes, { prefix: '/api/v1/knowledge' });
-
-  // ── Global error handler ───────────────────────────────────────────────
-  app.setErrorHandler((error: any, _request, reply) => {
-
-
-    app.log.error(error);
-    const statusCode = error.statusCode ?? 500;
-    void reply.status(statusCode).send({
-      success: false,
-      error: {
-        code: error.code ?? 'INTERNAL_ERROR',
-        message: statusCode === 500 ? 'Internal server error' : error.message,
-      },
-    });
-  });
-
 
   return app;
 }
